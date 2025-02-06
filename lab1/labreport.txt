@@ -1,0 +1,68 @@
+1 Компиляция, сбор зависимостей, запуск
+
+gcc -o hello hello.c
+
+nm hello | grep ' U '
+Покажет неопределенные символы (U), такие как puts. 
+Это означает, что их реализация берется из стандартной библиотеки (libc).
+
+ldd hello
+Список динамических библиотек, которые требуются исполняемому файлу, 
+включая libc.so.6, которая реализует printf.
+
+./hello
+
+2 Статистическая библиотека
+
+gcc -c static_lib.c -o static_lib.o
+ar rcs libstatic.a static_lib.o
+Компиляция статистической библиотеки
+
+изменил hello.c в функции main()
+
+gcc -o hello_static hello.c -L. -lstatic
+компиляия и линковка главной программы с статистической библиотекой 
+
+a)
+nm hello_static | grep hello_from_static_lib
+Проверяем на unresolved, функция не будет таковой, так как код функции встроен в исполняемый файл
+
+b) Где находится код функции?
+objdump -d hello_static | grep hello_from_static_lib
+Функция внутри hello_static, так как линковка статическая
+
+3 Динамическая библиотека
+
+компиляция динамической библиотеки
+gcc -shared -o libdynamic.so dynamic_lib.c -fPIC
+
+добавил функцию в hello.c
+
+компиляия и линковка главной программы с динамической библиотекой:
+gcc -o hello_dynamic hello.c -L. -ldynamic
+
+а) Проверить состояние функции в hello_dynamic + Объяснить
+nm hello_dynamic | grep hello_from_dynamic_lib
+sorokinm@sorokinm-CREFG-XX:~/Desktop/NSU_labs_OS_4semester/lab1$ nm hello_dynamic | grep hello_from_dynamic_lib
+            U hello_from_dynamic_lib
+Так как функция не встроена, а загружается во время выполнения!
+
+для запуска надо указать путь к библиотеке:
+sorokinm@sorokinm-CREFG-XX:~/Desktop/NSU_labs_OS_4semester/lab1$ ./hello_dynamic 
+./hello_dynamic: error while loading shared libraries: libdynamic.so: cannot open shared object file: No such file or directory
+sorokinm@sorokinm-CREFG-XX:~/Desktop/NSU_labs_OS_4semester/lab1$ LD_LIBRARY_PATH=. ./hello_dynamic
+Hello, world!
+Hello from dynamic library
+
+4 динамическая библиотека с функцией hello_from_dyn_runtime_lib() и загрузить ее в hello.c 
+с помощью dlopen(3). Объяснить что происходит.
+
+сделал файл dyn_runtime_lib.c
+
+Скомпилировал: gcc -shared -o libdyn_runtime.so dyn_runtime_lib.c -fPIC
+
+далее надо изменить hello.c для загрузки билиотеки во время выполнения
+
+Компиляция hello.c: gcc -o hello_runtime hello.c -ldl
+
+Запуск с указанием пути к библиотеке: LD_LIBRARY_PATH=. ./hello_runtime
