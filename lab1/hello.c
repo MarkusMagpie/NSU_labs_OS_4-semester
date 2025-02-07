@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <dlfcn.h> // 4
 
-void hello_from_static_lib();
-void hello_from_dynamic_lib();
+// void hello_from_static_lib();
+// void hello_from_dynamic_lib();
 
 // int main() {
 //     // 1
@@ -18,7 +18,7 @@ void hello_from_dynamic_lib();
 int main() {
     void *lib = dlopen("./libdyn_runtime.so", RTLD_LAZY); // загружаем библиотеку во время выполнения функции
     if (!lib) {
-        printf("Error loading library");
+        printf("Error 1");
         return 0;
     }
 

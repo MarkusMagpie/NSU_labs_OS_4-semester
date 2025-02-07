@@ -3,7 +3,7 @@
 gcc -o hello hello.c
 
 nm hello | grep ' U '
-Покажет undefined символы U:
+Покажет unresolved символы U:
     U __libc_start_main@GLIBC_2.34 - инициализирует и вызывает main() функцию (точка входа)
     U puts@GLIBC_2.2.5 - вывод строки на экран + "\n"
 их реализация берется из стандартной библиотеки libc.so.6 - берет dynamic linker 
@@ -45,6 +45,7 @@ objdump - display information from object files.
 
 компиляция динамической библиотеки
 gcc -shared -o libdynamic.so dynamic_lib.c
+-shared - Produce a shared object which can then be linked with other objects to form an executable.
 
 добавил функцию в hello.c
 
@@ -64,8 +65,52 @@ sorokinm@sorokinm-CREFG-XX:~/Desktop/NSU_labs_OS_4semester/lab1$ LD_LIBRARY_PATH
 Hello, world!
 Hello from dynamic library
 
-STATIC VSS DYNAMIC LIBRARIES
+STATIC VS DYNAMIC LIBRARIES
 https://stackoverflow.com/questions/140061/when-to-use-dynamic-vs-static-libraries
+
+ ? Зачем нам нужны динамические библиотеки, почему их нельзя заменить статическими
+ - Динамические библиотеки тратят время на подгрузку при запуске, 
+ но использование статических библиотек раздувает бинари + 
+ в разных исполняемых файлах будет один и тот же код в огромном кол-ве. 
+ (Представьте, что libc, и другие библиотеки копируются в каждом это пизда)
+
+ - libraries come in two types, static libraries, which are directly linked 
+ into into the executable file at linkage time, and shared libraries (also 
+ called dynamic-link libraries or DLLs in the Windows world), which are 
+ loaded and linked at run time to the programs which use them. 
+
+ ? LD_LIBRARY_PATH=. - че за хуйня, почему надо
+ - Эта переменная окружения говорит где искать динамические библиотеки. 
+   (По умолчанию /lib, /usr/local/lib, ...)
+   
+   ВАЖНО: то, что вы указывали путь при линковке, здесь не вляет. 
+   Ибо при линковке только создаются relocations(таблица, куда при запуске поместятся
+   адреса функций из динамических библиотек).
+
+   $LD_LIBRARY_PATH is consulted at time of execution, to provide a list of additional 
+   directories in which to search for dynamically linkable libraries. 
+   It is not consulted at link time.
+
+   -L. указывает линковщику путь к директории, где искать динамические библиотеки во время 
+   компоновки (link time), но не во время выполнения (runtime)!
+
+   Пример что $LD_LIBRARY_PATH is consulted at time of execution:
+   sorokinm@sorokinm-CREFG-XX:~/Desktop/NSU_labs_OS_4semester/lab1$ LD_LIBRARY_PATH=. ldd hello_dynamic 
+        linux-vdso.so.1 (0x00007ffe49bf2000)
+        libdynamic.so => ./libdynamic.so (0x00007bbdb3b65000)
+        libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007bbdb3800000)
+        /lib64/ld-linux-x86-64.so.2 (0x00007bbdb3b71000)
+   sorokinm@sorokinm-CREFG-XX:~/Desktop/NSU_labs_OS_4semester/lab1$ ldd hello_dynamic 
+        linux-vdso.so.1 (0x00007fffee9da000)
+        libdynamic.so => not found
+        libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007dafa9800000)
+        /lib64/ld-linux-x86-64.so.2 (0x00007dafa9b38000)
+
+ ? sorokinm@sorokinm-CREFG-XX:~/Desktop/NSU_labs_OS_4semester/lab1$ ./libdynamic.so 
+   Segmentation fault (core dumped)
+   почему так нахуй
+ - ответ в тетрадке - ниже ссылка на картинку для пояснения _main
+ https://stackoverflow.com/questions/29694564/what-is-the-use-of-start-in-c
 
 4 динамическая библиотека с функцией hello_from_dyn_runtime_lib() и загрузить ее в hello.c 
 с помощью dlopen(3). Объяснить что происходит.
@@ -89,4 +134,10 @@ https://stackoverflow.com/questions/140061/when-to-use-dynamic-vs-static-librari
 Компиляция hello.c: gcc -o hello_runtime hello.c -ldl
     -ldl -  подключаеv библиотеку libdl
 
-LD_LIBRARY_PATH=. ./hello_runtime
+Запусск программы: LD_LIBRARY_PATH=. ./hello_runtime
+
+? Будет ли в символах функция, которую через dlsym грузим?
+- Нет, не будет. Компилятор даже не знает, 
+что мы в коде какую-то библиотеку откроем и будем что-то с ней делать.
+
+? Что такое RTLD_LAZY?
