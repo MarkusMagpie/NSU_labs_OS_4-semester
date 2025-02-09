@@ -1,0 +1,56 @@
+1
+    a 
+        i 
+        Сделал hello.c, скомпилировал: gcc -o hello hello.c и запустил strace ./hello далее ответы на вопросы:
+
+        Какие системные вызовы были вызваны в процессе исполнения программы? 
+        Чем обусловлено такое количество системных вызовов?
+        Какой системный вызов используется для вывода “hello world”? 
+        Изучите этот вызов и разберитесь что он принимает и возвращает.
+
+        Системные вызовы: openat, mmap, mprotect, read, close
+        Вывод текста происходит с помощью системного вызова write(1, "Hello, world!\n", 14Hello, world!)
+        Завершение выполнения через exit_group(0)
+
+        +++ exited with 0 +++, in the last line states that exit status is 0 which means there was no error. 
+            In case of an error, the exit code is -1.
+
+        ? Че так много вызовов ?
+        printf работает через стандартную библиотеку glibc, требует доп настройки 
+            (есть лишние вызовы в отличие от write())
+
+
+        ii
+        Используйте сискол в программе hello world вместо printf(). 
+        Убедитесь что этот вызов присутствует в выводе strace.
+
+        https://man7.org/linux/man-pages/man2/write.2.html
+
+        ssize_t write(int fd, const void buf[.count], size_t count);
+        write() writes up to count bytes from the buffer starting at buf 
+            to the file referred to by the file descriptor fd.
+        fd - file descriptor в который и будут записаны данные, у меня равен 1 - это стандартный вывод.
+        buf - указатель на буфер с данными ("Hello, world!")
+        count - количество байт для записи
+        ! в случае успешной записи нам вернется 14 - число записанных байт 
+
+        компиляция и запуск с strace новой программы: 
+        gcc -o hello_write hello.c
+        strace ./hello_write
+
+        Да, действительно вывод присутствует в выводе trace: write(1, "Hello, world!\n", 14Hello, world!) = 14
+
+        Разница между write() и printf(): https://stackoverflow.com/questions/21084218/difference-between-write-and-printf
+
+
+        iii
+        напишите свою обертку над этим сисколом. Для этого используйте функцию syscall() из libc. 
+        Также проверьте вывод strace.
+
+        компиляция и запуск с strace:
+        gcc -o hello_syscall hello.c
+        strace ./hello_syscall
+
+        в выводе strace опять вижу write(1, "hello, world!\n", 14hello, world!) = 14 а значит вызвал write() 
+            через syscall 
+
