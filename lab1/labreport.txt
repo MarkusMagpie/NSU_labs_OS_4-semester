@@ -35,7 +35,10 @@ nm hello_static | grep hello_from_static_lib
 b) Где находится код функции?
 objdump -d hello_static | grep hello_from_static_lib
 objdump - display information from object files.
--d - Display the assembler mnemonics for the machine instructions from objfile
+-d, --disassemble        Display assembler contents of executable sections
+
+.text – это исполняемая секция памяти, содержащая код функций и команд программы. (скомпилированный машинный код)
+.text: Is where the main code of the program resides
 
 функция внутри hello_static, так как взята из libstatic.a на этапе коипоновки
 получу буквально фдрес начала функции в памяти + call 1171 говорит что вызов функции происходит
@@ -131,8 +134,7 @@ https://stackoverflow.com/questions/140061/when-to-use-dynamic-vs-static-librari
 
     dlclose(handle); - освободил библиотеку из памяти
 
-Компиляция hello.c: gcc -o hello_runtime hello.c -ldl
-    -ldl -  подключаеv библиотеку libdl
+Компиляция hello.c: gcc -o hello_runtime hello.c
 
 Запусск программы: LD_LIBRARY_PATH=. ./hello_runtime
 
@@ -140,4 +142,60 @@ https://stackoverflow.com/questions/140061/when-to-use-dynamic-vs-static-librari
 - Нет, не будет. Компилятор даже не знает, 
 что мы в коде какую-то библиотеку откроем и будем что-то с ней делать.
 
-? Что такое RTLD_LAZY?
+? 3 при изменении библиотеки почему не боимся изменений
+- при каждом запуске exec у нас новая копия so 
+- if the part of the program using the shared library is not invoked, the library need not be loaded at all
+- чтобы уменьшить издержки загрузки, динамические библиотеки кэшируются
+
+
+
+? 3 gcc -shared -o libdynamic.so dynamic_lib.c - включается ли fPic и почему велючение опции ВАЖНО
+- когда линкер создает .so, он заранее не знает, в каком месте в памяти она будет загружена. 
+    Из-за этого делать смещения на данные и код внутри библиотеки проблематично: непонятно, как создавать ссылку, 
+    чтобы она указывала в правильное место после того, как библиотека будет загружена.
+
+- Компилятор генерирует независимый от положения в памяти, перемещаемый объектный код (position independent code, PIC). 
+Такой формат необходим для получения модулей, используемых в составе динамической разделяемой библиотеки (shared library). 
+Вся внутренняя адресация строится с использованием глобальной таблицы смешений (global offset table, GOT). 
+При определении любого адреса содержащееся в таблице значение складывается с начальным адресом загрузки кода.
+Опция используется при компиляции модулей, предназначенных для сохранения в разделяемых объектных библиотеках для их 
+последующей динамической загрузки оттуда и использования программами во время их выполнения.
+
+
+
+? 4 как работает LAZY и почему только для функций
+- откладеывает разрешение адресов вызываемых функций до первого их вызова, 
+а не выполнякт полный перебор и разрешение всех внешних символов сразу при загрузке программы.
+
+вызовы функций проходят через таблицу PLT. Благодаря ей возможно отложить разрешение адреса функции до её первого вызова. 
+Переменные же требуют немедленного связывания, так как их адреса должны быть установлены сразу при загрузке, иначе обращение к ним может привести к ошибке. 
+
+
+
+RTLD_LAZY
+              Perform lazy binding.  Resolve symbols only as the code
+              that references them is executed.  If the symbol is never
+              referenced, then it is never resolved.  (Lazy binding is
+              performed only for function references; references to
+              variables are always immediately bound when the shared
+              object is loaded.)
+
+By default, lazy binding is used, which is resolving functions at the time they are called first, 
+at next calls it will be saved in the GOT (GLobal offset table). 
+Then the PLT entry just have to jmp onto the address contained in the GOT entry for that function.
+
+When an external function is called from the code, instead of the real function, the PLT entry for that function is called.
+
+The PLT is code that uses the GOT to jump and resolve with the help of the linker the external functions.
+
+Перевод:
+При использовании RTLD_LAZY разрешение внешних функций происходит "лениво" – то есть, адрес функции ищется и фиксируется при её первом вызове. При этом:
+PLT (Procedure Linkage Table) содержит записи, которые при вызове функции перенаправляют выполнение к динамическому загрузчику.
+В процессе первого вызова динамический загрузчик разрешает адрес функции и записывает его в соответствующую ячейку GOT (Global Offset Table).
+В последующих вызовах PLT просто выполняет переход (jmp) по адресу, уже сохранённому в GOT, что ускоряет работу.
+
+Почему это работает только для функций:
+Механизм PLT:
+Функции вызываются через записи в PLT. При первом вызове функция через PLT не знает её окончательный адрес, поэтому происходит переход к динамическому загрузчику, который разрешает адрес функции и записывает его в соответствующую ячейку GOT. В последующих вызовах PLT просто перепрыгивает по уже разрешённому адресу из GOT.
+Отсутствие аналогичного механизма для переменных:
+Переменные в программе ссылаются напрямую, без промежуточного уровня, аналогичного PLT. Их адреса должны быть разрешены во время загрузки, так как прямые обращения к переменным требуют сразу корректного адреса. Отложенное связывание для переменных невозможно, потому что при первом обращении к переменной необходимо знать её точное местоположение в памяти, чтобы избежать ошибок доступа.
