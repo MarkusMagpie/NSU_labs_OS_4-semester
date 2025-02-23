@@ -33,26 +33,28 @@ User space and Kernel space: https://en.wikipedia.org/wiki/User_space_and_kernel
 
 
 ? разница в поведении функций int (interrupt) и call() 
-Команда INT n обеспечивает программную генерацию прерывания и передачу управления в соответствующий обработчик.
-https://www.club155.ru/x86cmd/INTn
+INT n программа вызова програмного прерывания и соответственно передает управление в соответствующий обработчик.
 
-Инструкция CALL выполняет следующие действия:   1) Передаёт управление процедуре.
-                                                2) Записывает в стек адрес следующей команды (из регистра IP в 16-разрядном режиме или EIP - в 32-разрядном).
+CALL n - вызов процедуры. (передаёт управление по адресу, который передаётся в команду параметром)
+
 команда CALL передаёт управление по адресу, который передаётся в команду в качестве параметра. Процессор начинает выполнять команду, расположенную по этому адресу.
-https://av-assembler.ru/instructions/call.php
-https://www.club155.ru/x86cmd/CALL
-
 Различия: 
     1) Назначение
     INT используется для вызова обработчиков прерываний, переходя из пользовательского режима в режим ядра (с переключением привилегий)
     CALL применяется для обычных вызовов подпрограмм в рамках одного адресного пространства (без смены режима и без обращения к таблице векторов прерываний)
     2) Механизм перехода
-    INT сначала ищет адрес обработчика через таблицу векторов прерываний, и, в защищённом режиме, возможность осуществить переключение уровней привилегий.
-    CALL просто передаёт управление процедуре непосредственно по указанному адресу
+    INT сначала ищет адрес обработчика через таблицу векторов прерываний IDT, и, в защищённом режиме, возможность осуществить переключение уровней привилегий.
+    CALL передаёт управление процедуре непосредственно по адресу
 
 INT n в общем ведет себя как дальний вызов командой CALL, за исключением того, что регистр флагов помещается в стек перед адресом возврата.
 
-
+ПЕРЕД ОТВЕТОМ открой: 
+определение INT: https://www.club155.ru/x86cmd/INTn и о том как идет выполнение команды
+про определение ПРЕРЫВАНИЯ и как оно происходит: https://www.club155.ru/x86exceptions-types#soft
+https://ru.wikipedia.org/wiki/Регистр_флагов - отсюда взял строку: 
+    "когда активизируется обработчик прерывания или обработчик исключительной ситуации, процессор автоматически сохраняет значение регистра флагов в текущем стеке."
+2 ответа которые плохо структурированы: https://www.quora.com/Can-you-explain-the-difference-between-int-and-call-in-assembly-language
+                                        https://stackoverflow.com/questions/26445302/int-vs-call-on-asm-instructions#:~:text=Superficially%2C%20the%20difference%20is%3A,to%20look%20up%20the%20address.
 
 ? разница call и jmp
 jmp выполняет переход на указанный адрес, не сохраняя адрес возврата
@@ -72,24 +74,11 @@ call тоже выполняет переход, но при её выполне
 
 
 
-(Не мой вопрос)
-? разница call и syscall (function call vs system call)
-    1)  A system call is a call into kernel code, typically performed by executing an interrupt (int 0x80). 
-        The interrupt causes the kernel to take over and perform the requested action, then hands control back to the application. 
-        Пример: 
-            const char msg[] = "Hello, world!\n";
-            syscall(SYS_write, 1, msg, sizeof(msg) - 1); // функция syscall вызывает системный вызов write() для записи строки в стандартный вывод
-        
-        syscall - переход в режим ядра для выполнения системного вызова
-    2)  ?
-
-
-
 2.2
 ? если использовать write - можно получить проблему которой нет с использованием printf - какую
 Про write из unistd.h : https://pubs.opengroup.org/onlinepubs/7908799/xsh/write.html
 
-
+? почему мы вызываем функцию syscall() чтобы написать ассемблерную вставку
 
 1
     a 
@@ -212,26 +201,6 @@ call тоже выполняет переход, но при её выполне
     
     https://imada.sdu.dk/u/kslarsen/dm546/Material/IntelnATT.htm
 
-    __asm__ volatile (
-        "movl $4, %%eax \n\t"     // в регистр eax номер системного вызова для записи (write) = 4
-        "movl $1, %%ebx \n\t"     // 1 параметр: файловый дескриптор; дескриптор файла в ebx равен 1 - стандартный вывод (stdout) = 1
-        "movl %0, %%ecx \n\t"     // 2 параметр: загрузка адреса строки str в регистр ecx
-        "movl %1, %%edx \n\t"     // 3 параметр: длина строки len
-        "int $0x80     \n\t"      // вызов прерывания - https://stackoverflow.com/questions/1817577/what-does-int-0x80-mean-in-assembly-code
-        // In Linux, 0x80 interrupt handler is the kernel, and is used to make system calls to the kernel by other programs.
-
-        :                        // выходных операндов нет
-        : "r" (str), "r" (len)     // входные операнды
-        : "eax", "ebx", "ecx", "edx" // Затрагиваемые регистры
-    );
-
-    __asm__ volatile (
-        "movl $1, %%eax \n\t"     // номер системного вызова для завершения программы в eax = 1 (exit)
-        "xorl %%ebx, %%ebx \n\t"   // обнуляет регистр ebx, что задаёт код возврата 0
-        "int $0x80     \n\t"
-    );
-
-
     _start:
         movl    $write, %eax    // system call number (sys_write)
         movl    $1, %ebx        // file descriptor (stdout)
@@ -252,6 +221,3 @@ call тоже выполняет переход, но при её выполне
 
     https://www.tutorialspoint.com/assembly_programming/assembly_registers.htm
     https://stackoverflow.com/questions/1690893/hello-world-without-using-libraries
-
-
-? почему мы вызываем функцию syscall() чтобы написать ассемблерную вставку?
