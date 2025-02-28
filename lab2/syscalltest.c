@@ -11,9 +11,8 @@ void test_multiple_syscalls() {
     
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < ITERATIONS; i++) {
-        // 10 системных вызовов write
         for (int j = 0; j < 10; j++) {
-            write(STDOUT_FILENO, "X", 1);
+            write(1, "X", 1);
         }
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
@@ -29,8 +28,7 @@ void test_buffered() {
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < ITERATIONS; i++) {
-        // 1 системный вызов write
-        write(STDOUT_FILENO, buf, 10);
+        write(1, buf, 10);
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
     long long elapsed_ns = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
@@ -38,8 +36,15 @@ void test_buffered() {
     printf("\n100 сисколов (с буфером): %.3f ms\n", elapsed_ns / 1e6);
 }
 
+void test_fputs() {
+    fputs("AAAAA", stdout);
+    fputs("BBBBB", stdout);
+}
+
 int main() {
     test_multiple_syscalls();
     test_buffered();
+
+    test_fputs();
     return 0;
 }
