@@ -1,0 +1,83 @@
+1
+    создаю целевую директорию с перевёрнутым именем
+    копирую только регулярные файлы
+    переворачиваю как имена файлов, так и их содержимое
+
+    тест: 
+        mkdir testdir
+        cd testdir/
+        touch file1.txt
+        echo "hello" > file1.txt
+        cd ../
+        gcc copy_reversed.c -o copy
+        ./copy testdir
+
+    про функции:
+        main
+            stat 
+                информация о файлах
+
+                https://www.opennet.ru/man.shtml?topic=stat&category=2&russian=0
+            strdup 
+                использую для создания копий строк argv[1], ибо basename может модифицировать переданную ему строку
+            basename 
+                извлечение последнего компонента из пути к файлу. ПРИМЕР: /home/user/docs/file.txt вернет file.txt
+                ! если передавать в basename() оригинальный аргумент argv[1], функция может изменить его, что приведет к ошибкам 
+
+                https://www.opennet.ru/man.shtml?topic=basename&category=3&russian=2
+            dirname
+                dirname() returns the string up to, but not including, the final '/'
+
+                https://man7.org/linux/man-pages/man3/basename.3.html
+            mkdir 
+                Функция mkdir() создает каталог, используя путь, на который указывает параметр path.
+                про права доступа: https://www.managedserver.eu/website-permissions-on-linux-750-and-650-vs-755-and-644/#:~:text=The%20755%20permission%20for%20directories,allows%20everyone%20to%20read%20them.
+
+                https://www.c-cpp.ru/content/mkdir
+            opendir
+                открывает поток каталога и возвращает указатель на структуру типа DIR, которая содержит информацию о каталоге
+
+                https://www.c-cpp.ru/content/closedir-opendir-readdir-rewinddir
+            про dirent: https://firststeps.ru/linux/r.php?20
+
+        copy_file_reversed
+            fopen
+                открывает файл, имя которого указано аргументом fname, и возвращает свя­занный с ним указатель
+                Open a file and create a new stream for it
+                stream нужно потом закрыть с помощью fclose
+
+                https://www.c-cpp.ru/content/fopen
+            fseek
+                устанавливает указатель положения в файле, связанном со stream, в соответ­ствии со значениями offset и origin
+                у меня offset 0
+                SEEK_END - макрос для origin - значит указатель в конец файла
+
+                короче - помещаем указатель В КОНЕЦ файла
+                
+                https://www.c-cpp.ru/content/fseek
+            ftell
+                так как указатель в конце файла, вернет текущую позицию (размер файла в байтах)
+
+                https://www.c-cpp.ru/content/ftell
+            rewind
+                Функция rewind() перемещает указатель положения в файле на начало указанного потока
+                возвращает указатель в начало для последующего чтения
+
+                https://www.c-cpp.ru/content/rewind
+            size_t fread(void *buf, size_t size, size_t count, FILE *stream)
+                Функция fread() считывает count объектов — каждый объект по size символов в длину — из потока, 
+                указанного stream, и помещает их в символьный массив, указанный в buf. 
+                Указатель пози­ции в файле продвигается вперед на количество считанных символов.
+
+                fread(buffer, 1, filesize, src)
+
+                https://www.c-cpp.ru/content/fread
+            size_t fwrite(const void *buf, size_t size, size_t count, FILE *stream)
+                Функция fwrite() записывает count объектов — каждый объект по size символов в длину — в поток, 
+                указанный stream, из символьного массива, указанного buf. 
+                Указатель позиции в файле продвигается вперед на количество записанных символов.
+
+                fwrite(buffer, 1, filesize, dest)
+
+                https://www.c-cpp.ru/content/fwrite
+            fclose
