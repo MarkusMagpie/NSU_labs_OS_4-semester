@@ -12,6 +12,10 @@
         gcc copy_reversed.c -o copy
         ./copy testdir
 
+    про . и ..:
+        ls -a	    list all files including hidden file starting with '.'.
+        https://askubuntu.com/questions/54900/what-do-and-mean-when-in-a-folder
+    
     про функции:
         main
             stat 
@@ -80,4 +84,33 @@
                 fwrite(buffer, 1, filesize, dest)
 
                 https://www.c-cpp.ru/content/fwrite
+            int ferror(FILE *stream)
+                проверяет наличие ошибок чтения или записи в файле, связанном с потоком stream.
+
+                https://www.c-cpp.ru/content/ferror
             fclose
+
+    про симлинки, хардлинки и inode? 
+        жёсткие ссылки (хардлинки) — это как файлы - дополнительные указатели напрямую на inode (информационный узел файловой системы).
+        hardlink - это ещё одно имя для существующего inode.
+        Пример: file.txt и его hardlink — два имени для одних и тех же данных.
+
+        символические ссылки (симлинки) — это отдельные файлы (со своим inode и данными), которые хранят путь к другому файлу в файловой системе.
+        это отдельный файл, который хранит путь к целевому файлу.
+        Пример: symlink - указывает на /home/user/file.txt.
+
+        НАГЛЯДНО: есть книга.txt - командой ln книга.txt хардлинк_книги.txt создал хардлинк.
+                    хардлинк - просто второе название книги (резервная копия книги). если удалить книгу, то она доступна через хардлинк
+
+                    ln -s книга.txt симлинк_книги.txt - создал ЗАКЛАДКУ "книга лежит на полке 10". перименую или удалю книгу и закладка не валидна.
+
+        inode - структура данных в файловой системе, которая хранит метаинформацию о файле:
+            Тип файла (обычный файл, каталог и т.д.),
+            Права доступа,
+            Временные метки,
+            Указатели на блоки данных файла.
+        Каждый файл имеет уникальный inode в пределах своей файловой системы. 
+
+        Ответ: https://askubuntu.com/questions/108771/what-is-the-difference-between-a-hard-link-and-a-symbolic-link#:~:text=Hard-links%2C%20are%20just%20like,filesystem%20path%20to%20a%20file.
+               . и .. - хардлинки: https://askubuntu.com/questions/54900/what-do-and-mean-when-in-a-folder
+               

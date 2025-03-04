@@ -54,14 +54,36 @@ int copy_file_reversed(const char *src_path, const char *dest_path) {
         fclose(src);
         return -1;
     }
-    size_t read_bytes = fread(buffer, 1, filesize, src);
-    if (read_bytes != filesize) {
-        printf("Ошибка чтения файла: %s\n", src_path);
-        free(buffer);
-        fclose(src);
-        return -1;
+    // size_t read_bytes = fread(buffer, 1, filesize, src);
+    // if (read_bytes != filesize) {
+    //     printf("Ошибка чтения файла: %s\n", src_path);
+    //     free(buffer);
+    //     fclose(src);
+    //     return -1;
+    // }
+    int read_total = 0;
+    while (read_total < filesize) {
+        size_t read_bytes = fread(buffer + read_total, 1, filesize - read_total, src);
+        if (read_bytes == 0) {
+            // printf("Ошибка чтения файла: %s\n", src_path);
+            if (ferror(src)) {
+                perror("ошибка при чтении файла");
+            } else {
+                printf("файл изменился за время чтения(?): %s\n", src_path);
+            }
+            free(buffer);
+            fclose(src);
+            return -1;
+        }
+        read_total += read_bytes;
     }
     fclose(src);
+
+    if (read_total != filesize) {
+        printf("Ошибка чтения файла (изменился за время чтения?): %s\n", src_path);
+        free(buffer);
+        return -1;
+    }
 
     // переворачиваем содержимого (средний на месте)
     for (long i = 0; i < filesize/2; i++) {
@@ -76,12 +98,30 @@ int copy_file_reversed(const char *src_path, const char *dest_path) {
         free(buffer);
         return -1;
     }
-    size_t written = fwrite(buffer, 1, filesize, dest);
-    if (written != filesize) {
-        printf("Ошибка записи файла: %s\n", dest_path);
-        free(buffer);
-        fclose(dest);
-        return -1;
+    // size_t written = fwrite(buffer, 1, filesize, dest);
+    // if (written != filesize) {
+    //     printf("Ошибка записи файла: %s\n", dest_path);
+    //     free(buffer);
+    //     fclose(dest);
+    //     return -1;
+    // }
+    // fclose(dest);
+    // free(buffer);
+    int written_total = 0;
+    while (written_total < filesize) {
+        size_t written_bytes = fwrite(buffer + written_total, 1, filesize - written_total, dest);
+        if (written_bytes == 0) {
+            // printf("Ошибка записи файла: %s\n", dest_path);
+            if (ferror(dest)) {
+                perror("ошибка при записи файла");
+            } else {
+                printf("файл изменился за время записи(?): %s\n", dest_path);
+            }
+            free(buffer);
+            fclose(dest);
+            return -1;
+        }
+        written_total += written_bytes;
     }
     fclose(dest);
     free(buffer);
@@ -171,7 +211,8 @@ int main(int argc, char *argv[]) {
     struct dirent *entry;
     // логика: readdir-ом читаю по элементу исходного каталога dir, в entry лежит укзаатель на структуру dirent
     while ((entry = readdir(dir)) != NULL) {
-        // не обращаю внимания - это спец записи (. - ссылка на текущий каталог, .. - на родительский)
+        // не обращаю внимания - это служебные записи (. - ссылка на текущий каталог, .. - на родительский)
+        // ls -a
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
             continue;
 
