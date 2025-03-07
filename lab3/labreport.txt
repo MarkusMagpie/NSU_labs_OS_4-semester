@@ -113,4 +113,62 @@
 
         Ответ: https://askubuntu.com/questions/108771/what-is-the-difference-between-a-hard-link-and-a-symbolic-link#:~:text=Hard-links%2C%20are%20just%20like,filesystem%20path%20to%20a%20file.
                . и .. - хардлинки: https://askubuntu.com/questions/54900/what-do-and-mean-when-in-a-folder
+
+               по-русски про иноды, линки: https://alishoff.com/blog/213
                
+
+? что такое директория
+- 
+
+? за что отвечает флаг b в fopen
+- открытие файла в двоичном режиме для чтения. 
+    в двоичном режиме данные читаются без преобразований 
+    если файла нету то fopen вернет NULL
+    кросплатформенность - на Unix системах (это линукс и макос) нет разницы между "r" и "rb", на Windows - есть. 
+        Использование "rb" гарантирует одинаковое поведение.
+
+    https://www.geeksforgeeks.org/c-fopen-function-with-examples/
+
+
+
+? переписать copy_file_reversed на posix api + копировать права файла
+? как работает макрос S_ISDIR(m)
+- макрос проверяет, установлен ли в поле st_mode флаг, соответствующий каталогу. Его реализация обычно выглядит так:
+-
+    /* Из stat.h
+    /* Encoding of the file mode.  */
+    #define	__S_IFMT	0170000	/* These bits determine file type. (первые 4 бита st_mode отвечают за тип) */
+
+    S_IFMT — маска для выделения битов типа файла (первые 4 бита в st_mode)
+    S_IFDIR — конкретное значение, соответствующее каталогу (второй бит слева 16-ричного числа)
+    */
+
+    #define S_ISDIR(mode)    (((mode) & __S_IFMT) == S_IFDIR) 
+
+    st_mode: 16 бит. 
+        0-3 - тип файла: из stat.h:
+            /* File types.  */
+            #define	__S_IFDIR	0040000	/* Directory. (маска второго бита слева 16-ричного числа) */
+            #define	__S_IFCHR	0020000	/* Character device.  */
+            #define	__S_IFBLK	0060000	/* Block device.  */
+            #define	__S_IFREG	0100000	/* Regular file.  */
+            #define	__S_IFIFO	0010000	/* FIFO.  */
+            #define	__S_IFLNK	0120000	/* Symbolic link.  */
+            #define	__S_IFSOCK	0140000	/* Socket.  */ 
+
+        4-6 - специальные биты(SUID, SGID, sticky bit)
+            /* Protection bits.  */
+            #define	__S_ISUID	04000	/* Set user ID on execution. (файл выполняется от имени владельца) */
+            #define	__S_ISGID	02000	/* Set group ID on execution.  */
+            #define	__S_ISVTX	01000	/* Save swapped text after use (sticky).  */
+
+        7-9 - owner's rights: rwx
+            #define	__S_IREAD	0400	/* Read by owner.  */
+            #define	__S_IWRITE	0200	/* Write by owner.  */
+            #define	__S_IEXEC	0100	/* Execute by owner.  */
+
+        10-12 - group's rights 
+
+        13-15 - others' rights
+
+    вариант ответа: https://jameshfisher.com/2017/02/24/what-is-mode_t/

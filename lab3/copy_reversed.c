@@ -14,7 +14,7 @@ char* reverse_string(const char *str) {
     int len = strlen(str);
     char *mem = malloc(len + 1);
     if (!mem) {
-        printf("ошибка выделения памяти\n");
+        printf("ошибка выделения памяти для перевернутой строки маллоком\n");
         return NULL;
     }
     for (int i = 0; i < len; i++) {
@@ -62,7 +62,8 @@ int copy_file_reversed(const char *src_path, const char *dest_path) {
     //     return -1;
     // }
     int read_total = 0;
-    while (read_total < filesize) {
+    int try_count = 0;
+    while (read_total < filesize && try_count < 10) {
         size_t read_bytes = fread(buffer + read_total, 1, filesize - read_total, src);
         if (read_bytes == 0) {
             // printf("Ошибка чтения файла: %s\n", src_path);
@@ -76,6 +77,7 @@ int copy_file_reversed(const char *src_path, const char *dest_path) {
             return -1;
         }
         read_total += read_bytes;
+        try_count++;
     }
     fclose(src);
 
@@ -108,7 +110,8 @@ int copy_file_reversed(const char *src_path, const char *dest_path) {
     // fclose(dest);
     // free(buffer);
     int written_total = 0;
-    while (written_total < filesize) {
+    try_count = 0;
+    while (written_total < filesize && try_count < 10) {
         size_t written_bytes = fwrite(buffer + written_total, 1, filesize - written_total, dest);
         if (written_bytes == 0) {
             // printf("Ошибка записи файла: %s\n", dest_path);
@@ -122,8 +125,16 @@ int copy_file_reversed(const char *src_path, const char *dest_path) {
             return -1;
         }
         written_total += written_bytes;
+        try_count++;
     }
     fclose(dest);
+
+    if (written_total != filesize) {
+        printf("Ошибка записи файла (изменился за время записи?): %s\n", dest_path);
+        free(buffer);
+        return -1;
+    }
+
     free(buffer);
 
     return 0;
@@ -141,6 +152,9 @@ int main(int argc, char *argv[]) {
         printf("указанный путь не существует\n");
         return 0;
     }
+
+    // printf("выввод st_mode файла %s: %016b \n ", argv[1], st.st_mode);
+
     if (!S_ISDIR(st.st_mode)) {
         printf("путь не является каталогом: %s\n", argv[1]);
         return 0;
@@ -236,6 +250,7 @@ int main(int argc, char *argv[]) {
             continue;
         }
         if (!S_ISREG(file_stat.st_mode)) {
+            printf("не регулярный файл: %s\n", full_src_path);
             free(full_src_path);
             continue;
         }
