@@ -231,8 +231,9 @@ int main(int argc, char *argv[]) {
     while ((entry = readdir(dir)) != NULL) {
         // не обращаю внимания - это служебные записи (. - ссылка на текущий каталог, .. - на родительский)
         // ls -a
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
+        }
 
         // полный путь к исходному каталогу (не с развернутым именем как выше делал)
         size_t full_src_path_len = strlen(argv[1]) + 1 + strlen(entry->d_name) + 1;
