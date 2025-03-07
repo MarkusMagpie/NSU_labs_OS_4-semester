@@ -282,3 +282,16 @@
     remove_file: 
         ln file_manager remove_file
         ./remove_file test_file.txt
+
+    create_symlink:
+        про функцию int symlink(const char *topath, const char *frompath): https://www.opennet.ru/man.shtml?topic=symlink&category=2&russian=0
+
+        ln file_manager create_symlink
+        touch file1.txt
+        ./create_symlink file1.txt symlink_file1.txt
+        cd ../
+        ls -la task2
+
+    ln file_manager print_symlink
+    ln file_manager print_symlink_target
+    ln file_manager remove_symlink

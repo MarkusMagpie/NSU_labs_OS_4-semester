@@ -19,7 +19,7 @@ int print_file(char *argv[]);
 int remove_file(char *argv[]);
 
 // // g-j - создать symlink/вывести содержимое symlink/вывести содержимое файла на который указывает symlink/удалить symlink
-// int create_symlink(int argc, char *argv[]);
+int create_symlink(int argc, char *argv[]);
 // int print_symlink(int argc, char *argv[]);
 // int print_symlink_file(int argc, char *argv[]);
 // int remove_symlink(int argc, char *argv[]);
@@ -120,6 +120,18 @@ int remove_file(char *argv[]) {
     return 0;
 }
 
+// g - создать символьную ссылку на файл, указанный в аргументе
+int create_symlink(int argc, char *argv[]) {
+    if (symlink(argv[1], argv[2])) {
+        printf("ошибка symlink при создании символьной ссылки: %s -> %s\n", argv[1], argv[2]);
+        return -1;
+    }
+
+    return 0;
+}
+
+
+
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         printf("неверное количество аргументов\n");
@@ -152,6 +164,10 @@ int main(int argc, char *argv[]) {
     } else if (strcmp(cmd, "remove_file") == 0) {
         if (remove_file(argv) == 0) {
             printf("\nКоманда remove_file успешно удалила файл: %s\n", argv[1]);
+        }
+    } else if (strcmp(cmd, "create_symlink") == 0) {
+        if (create_symlink(argc, argv) == 0) {
+            printf("\nКоманда create_symlink успешно создала символьную ссылку: %s -> %s\n", argv[1], argv[2]);
         }
     } else {
         printf("Неизвестная команда!\n");
