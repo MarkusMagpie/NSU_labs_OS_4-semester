@@ -5,6 +5,8 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <libgen.h>
+#include <fcntl.h> // O_RDONLY
+#include <unistd.h> // close и тд
 
 
 // переворачивания строки
@@ -28,115 +30,117 @@ char* reverse_string(const char *str) {
 // функция копирования файла с переворотом содержимого
 // 0 при успехе и -1 иначе
 int copy_file_reversed(const char *src_path, const char *dest_path) {
-    FILE *src = fopen(src_path, "rb"); // rb - чтение в бинарном режиме
-    if (!src) {
-        printf("Ошибка открытия файла: %s\n", src_path);
+    struct stat src_stat;
+
+    if (stat(src_path, &src_stat) < 0) {
+        printf("ошибка при получении меттаданных исходного файла: %s\n", src_path);
+        return -1;
+    }
+    // проверка что исходный файл -  регулярный осуществляется вне этой функции. это не ее задача
+
+    // открываем исходный
+    int src_fd = open(src_path, O_RDONLY);
+    if (src_fd == -1) {
+        printf("Ошибка open. Returned value -1.\n");
+    }
+
+    // размер файла
+    size_t filesize = lseek(src_fd, 0, SEEK_END);
+    if (filesize == -1) {
+        printf("ошибка при получении размера файла: %s\n", src_path);
+        close(src_fd);
         return -1;
     }
 
-    // размер файла src_path
-    if (fseek(src, 0, SEEK_END) != 0) {
-        printf("Ошибка fseek: %s\n", src_path);
-        fclose(src);
-        return -1;
-    }
-    long filesize = ftell(src);
-    if (filesize < 0) {
-        printf("Ошибка ftell (получил отрицательный размер файла): %s\n", src_path);
-        fclose(src);
-        return -1;
-    }
-    rewind(src);
-
-    char *buffer = malloc(filesize); // память под все содержимое файла
-    if (!buffer) {
+    char *buffer = malloc(filesize);
+    if (buffer == NULL) {
         printf("ошибка выделения памяти для содержимого файла: %s\n", src_path);
-        fclose(src);
+        close(src_fd);
         return -1;
     }
-    // size_t read_bytes = fread(buffer, 1, filesize, src);
-    // if (read_bytes != filesize) {
-    //     printf("Ошибка чтения файла: %s\n", src_path);
-    //     free(buffer);
-    //     fclose(src);
-    //     return -1;
-    // }
+
     int read_total = 0;
     int try_count = 0;
     while (read_total < filesize && try_count < 10) {
-        size_t read_bytes = fread(buffer + read_total, 1, filesize - read_total, src);
-        if (read_bytes == 0) {
-            // printf("Ошибка чтения файла: %s\n", src_path);
-            if (ferror(src)) {
-                perror("ошибка при чтении файла");
-            } else {
-                printf("файл изменился за время чтения(?): %s\n", src_path);
-            }
+        size_t read_bytes = pread(src_fd, buffer + read_total, filesize - read_total, read_total);
+        if (read_bytes == -1) {
+            printf("ошибка при чтении файла: %s\n", src_path);
             free(buffer);
-            fclose(src);
+            close(src_fd);
             return -1;
         }
         read_total += read_bytes;
         try_count++;
     }
-    fclose(src);
 
+    // 10 попыток не хватило
     if (read_total != filesize) {
         printf("Ошибка чтения файла (изменился за время чтения?): %s\n", src_path);
         free(buffer);
+        close(src_fd);
         return -1;
     }
 
     // переворачиваем содержимого (средний на месте)
-    for (long i = 0; i < filesize/2; i++) {
+    for (size_t i = 0; i < filesize/2; i++) {
         char temp = buffer[i];
         buffer[i] = buffer[filesize - 1 - i];
         buffer[filesize - 1 - i] = temp;
     }
 
-    FILE *dest = fopen(dest_path, "wb");
-    if (!dest) {
-        printf("Ошибка создания файла: %s\n", dest_path);
+    // создал ЦЕЛЕВОЙ файл с теми же правами доступа
+    int dest_fd = open(dest_path, O_WRONLY | O_CREAT | O_TRUNC, src_stat.st_mode);
+    if (dest_fd == -1) {
+        printf("ошибка при создании целевого файла: %s\n", dest_path);
         free(buffer);
+        close(src_fd);
         return -1;
     }
-    // size_t written = fwrite(buffer, 1, filesize, dest);
-    // if (written != filesize) {
-    //     printf("Ошибка записи файла: %s\n", dest_path);
-    //     free(buffer);
-    //     fclose(dest);
-    //     return -1;
-    // }
-    // fclose(dest);
-    // free(buffer);
-    int written_total = 0;
+
     try_count = 0;
-    while (written_total < filesize && try_count < 10) {
-        size_t written_bytes = fwrite(buffer + written_total, 1, filesize - written_total, dest);
-        if (written_bytes == 0) {
-            // printf("Ошибка записи файла: %s\n", dest_path);
-            if (ferror(dest)) {
-                perror("ошибка при записи файла");
-            } else {
-                printf("файл изменился за время записи(?): %s\n", dest_path);
-            }
+    int write_total = 0;
+    while (write_total < filesize && try_count < 10) {
+        size_t write_bytes = pwrite(dest_fd, buffer + write_total, filesize - write_total, write_total);
+        if (write_bytes == -1) {
+            printf("ошибка при записи файла: %s\n", dest_path);
             free(buffer);
-            fclose(dest);
+            close(src_fd);
+            close(dest_fd);
             return -1;
         }
-        written_total += written_bytes;
+        write_total += write_bytes;
         try_count++;
     }
-    fclose(dest);
 
-    if (written_total != filesize) {
-        printf("Ошибка записи файла (изменился за время записи?): %s\n", dest_path);
+    // случай если истратил все 10 попыток но файл все равно не записался полностью
+    if (write_total != filesize) {
+        printf("ошибка при записи файла (изменился за время записи?): %s\n", dest_path);
         free(buffer);
+        close(src_fd);
+        close(dest_fd);
+        return -1;
+    }
+
+    /* 
+    1) нюанс с open строка 92 - если файл dest_path существовал то его права не изменятся. Чтобы их изменить использую fchmod 
+    также резонно делать смену прав после записи нужного нам содержимого исходника 
+
+    2) umask. права доступа созданного файла равны mode & ~umask, где umask(user file-creation mode mask) - текущая маска процесса (покажи командой umask)
+    чтобы избежать несовпадения прав после наложения umask, использую fchmod
+    
+    в тетрадке ПОКАЖИ вычисления почему работает без
+    */
+    if (fchmod(dest_fd, src_stat.st_mode) != 0) {
+        printf("не удалось установить права доступа как у исходного файла: %s\n", dest_path);
+        free(buffer);
+        close(src_fd);
+        close(dest_fd);
         return -1;
     }
 
     free(buffer);
-
+    close(src_fd);
+    close(dest_fd);
     return 0;
 }
 
@@ -250,7 +254,7 @@ int main(int argc, char *argv[]) {
             continue;
         }
         if (!S_ISREG(file_stat.st_mode)) {
-            printf("не регулярный файл: %s\n", full_src_path);
+            printf("не регулярный исходный файл: %s\n", full_src_path);
             free(full_src_path);
             continue;
         }

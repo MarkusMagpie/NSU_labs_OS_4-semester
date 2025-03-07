@@ -117,58 +117,121 @@
                по-русски про иноды, линки: https://alishoff.com/blog/213
                
 
-? что такое директория
-- 
+    ? что такое директория
+    -   Книга Иртегова [страница 632]
+        Каталог - таблица преобразования имен в адреса. В каталоге хранится имя файла + его метаданные. 
+        Метаданные могут хранить в специальной структуре данных - inode, тогда запись в каталоге содержит имя и указатель на инод.
 
-? за что отвечает флаг b в fopen
-- открытие файла в двоичном режиме для чтения. 
-    в двоичном режиме данные читаются без преобразований 
-    если файла нету то fopen вернет NULL
-    кросплатформенность - на Unix системах (это линукс и макос) нет разницы между "r" и "rb", на Windows - есть. 
-        Использование "rb" гарантирует одинаковое поведение.
+        Можно сказать: каталог хранит список пар: имя файла - inode, а inode уже хранит метаданные: тип файла, inode ID, size, права доступа и тд ...  
 
-    https://www.geeksforgeeks.org/c-fopen-function-with-examples/
+        просмотр содержимого каталога с inode (1 колонка - номер inode): ls -li lab3/
+        просмотр метаданных inode (Inode: 1441796 - уникальный идентификатор inode; Links: 2 - количесвто hardlinks на эту inode): stat copy
 
+    - 2 вариант открой википедию: https://ru.wikipedia.org/wiki/Каталог_(файловая_система)
+      есть вариант структуры директории здесь: https://blogs.oracle.com/linux/post/directory-entry-lookup-in-ext4
 
 
-? переписать copy_file_reversed на posix api + копировать права файла
-? как работает макрос S_ISDIR(m)
-- макрос проверяет, установлен ли в поле st_mode флаг, соответствующий каталогу. Его реализация обычно выглядит так:
--
-    /* Из stat.h
-    /* Encoding of the file mode.  */
-    #define	__S_IFMT	0170000	/* These bits determine file type. (первые 4 бита st_mode отвечают за тип) */
 
-    S_IFMT — маска для выделения битов типа файла (первые 4 бита в st_mode)
-    S_IFDIR — конкретное значение, соответствующее каталогу (второй бит слева 16-ричного числа)
-    */
+    ? за что отвечает флаг b в fopen
+    - открытие файла в двоичном режиме для чтения (если файла нету то fopen вернет NULL)
 
-    #define S_ISDIR(mode)    (((mode) & __S_IFMT) == S_IFDIR) 
+        кросплатформенность - на Unix системах (это линукс и макос) нет разницы между "r" и "rb", на Windows - есть. Использование "rb" гарантирует одинаковое поведение.
+        в двоичном режиме данные читаются без преобразований:
+            - если открывать файл с флагом "r" - то есть в текстовом режиме, 
+                символы конца строки (EOL) в зависимости от ОС по-разному преобразуются:
+                Windows: конец строки представлен двумя символами: \r(возврат каретки) + \n(перевод строки)
+                в текстовом режиме эти 2 символа преобразуются в 1
 
-    st_mode: 16 бит. 
-        0-3 - тип файла: из stat.h:
-            /* File types.  */
-            #define	__S_IFDIR	0040000	/* Directory. (маска второго бита слева 16-ричного числа) */
-            #define	__S_IFCHR	0020000	/* Character device.  */
-            #define	__S_IFBLK	0060000	/* Block device.  */
-            #define	__S_IFREG	0100000	/* Regular file.  */
-            #define	__S_IFIFO	0010000	/* FIFO.  */
-            #define	__S_IFLNK	0120000	/* Symbolic link.  */
-            #define	__S_IFSOCK	0140000	/* Socket.  */ 
+                ПРИМЕР: 10 строк, каждая заканчивается на \r\n (например Hello\r\nWorld\r\n)
+                        открываю в режиме "r" на Винде -> 100 + 10*1 = 110 а общее число символов 120!
+                        Если же читать в бинарном режиме "rb" то символы читаются без преобразований -> 120
 
-        4-6 - специальные биты(SUID, SGID, sticky bit)
-            /* Protection bits.  */
-            #define	__S_ISUID	04000	/* Set user ID on execution. (файл выполняется от имени владельца) */
-            #define	__S_ISGID	02000	/* Set group ID on execution.  */
-            #define	__S_ISVTX	01000	/* Save swapped text after use (sticky).  */
+        описание rb: https://www.geeksforgeeks.org/c-fopen-function-with-examples/
+        r vs rb: https://www.vbforums.com/showthread.php?395162-fopen-s-quot-r-quot-vs-quot-rb-quot
 
-        7-9 - owner's rights: rwx
-            #define	__S_IREAD	0400	/* Read by owner.  */
-            #define	__S_IWRITE	0200	/* Write by owner.  */
-            #define	__S_IEXEC	0100	/* Execute by owner.  */
 
-        10-12 - group's rights 
 
-        13-15 - others' rights
+    ? переписать copy_file_reversed на posix api + копировать права файла
+    - новые функции:
+        open(src_path, O_RDONLY)
+            открытие исходного файла src_path только для чтения
 
-    вариант ответа: https://jameshfisher.com/2017/02/24/what-is-mode_t/
+            https://www.opennet.ru/man.shtml?topic=open&category=2
+        open(dest_path, O_WRONLY | O_CREAT | O_TRUNC, src_stat.st_mode)
+            создание целевого файла для записи
+            O_WRONLY - открыть только для записи
+            O_CREAT - создать если еще не существует 
+            O_TRUNC - если же файлик уже существет, то обрезать длину до 0
+
+            Аргумент mode задает права доступа, которые используются в случае создания нового файла.
+            в моем случае: src_stat.st_mode - права копируются из исходного файла
+        lseek(src_fd, 0, SEEK_END)
+            Функция lseek устанавливает смещение для файлового дескриптора src_fd в значение оффсета - в 0 в соответствии с директивой
+                SEEK_END - Смещение устанавливается как размер файла плюс offset байт.
+
+            проще говоря, переметил указатель в конец файла
+
+            https://www.opennet.ru/man.shtml?topic=lseek&category=2&russian=0
+        pread(src_fd, buffer + read_total, filesize - read_total, read_total)
+            записывает максимум filesize-read_total байтов из описателя файлов src_fd, начиная со смещения read_total (от начала файла), 
+                в буфер buffer+read_total. Текущая позиция файла не изменяется.
+
+            Про разницу в pread и read: https://www.quora.com/What-is-the-difference-between-the-read-and-pread-system-calls-in-Unix
+
+            https://www.opennet.ru/man.shtml?topic=pread&category=2&russian=0
+        pwrite(dest_fd, buffer + write_total, filesize - write_total, write_total);
+            записывает максимум filesize-write_total байтов из буфера buffer+write_total в описатель файла dest_fd, 
+                начиная со смещения write_total. Текущая позиция файла не изменяется.
+
+            https://www.opennet.ru/man.shtml?topic=pwrite&category=2&russian=0
+        fchmod(dest_fd, src_stat.st_mode)
+            копируем права из исходного файла
+
+            https://www.opennet.ru/man.shtml?topic=fchmod&category=2&russian=0
+        close
+            закрывает файловый дескриптор, который после этого не ссылается ни на один и файл и может быть использован повторно.
+
+            https://www.opennet.ru/man.shtml?topic=close&category=2&russian=0
+
+
+
+    ? как работает макрос S_ISDIR(m)
+    - макрос проверяет, установлен ли в поле st_mode флаг, соответствующий каталогу. Его реализация обычно выглядит так:
+        
+        /* Из stat.h
+        /* Encoding of the file mode.  */
+        #define	__S_IFMT	0170000	/* These bits determine file type. (первые 4 бита st_mode отвечают за тип) */
+
+        S_IFMT — маска для выделения битов типа файла (первые 4 бита в st_mode)
+        S_IFDIR — конкретное значение, соответствующее каталогу (второй бит слева 16-ричного числа)
+        */
+
+        #define S_ISDIR(mode)    (((mode) & __S_IFMT) == S_IFDIR) 
+
+        st_mode: 16 бит. 
+            0-3 - тип файла: из stat.h:
+                /* File types.  */
+                #define	__S_IFDIR	0040000	/* Directory. (маска второго бита слева 16-ричного числа) */
+                #define	__S_IFCHR	0020000	/* Character device.  */
+                #define	__S_IFBLK	0060000	/* Block device.  */
+                #define	__S_IFREG	0100000	/* Regular file.  */
+                #define	__S_IFIFO	0010000	/* FIFO.  */
+                #define	__S_IFLNK	0120000	/* Symbolic link.  */
+                #define	__S_IFSOCK	0140000	/* Socket.  */ 
+
+            4-6 - специальные биты(SUID, SGID, sticky bit)
+                /* Protection bits.  */
+                #define	__S_ISUID	04000	/* Set user ID on execution. (файл выполняется от имени владельца) */
+                #define	__S_ISGID	02000	/* Set group ID on execution.  */
+                #define	__S_ISVTX	01000	/* Save swapped text after use (sticky).  */
+
+            7-9 - owner's rights: rwx
+                #define	__S_IREAD	0400	/* Read by owner.  */
+                #define	__S_IWRITE	0200	/* Write by owner.  */
+                #define	__S_IEXEC	0100	/* Execute by owner.  */
+
+            10-12 - group's rights 
+
+            13-15 - others' rights
+
+        вариант ответа: https://jameshfisher.com/2017/02/24/what-is-mode_t/
