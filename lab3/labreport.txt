@@ -240,13 +240,16 @@
     a. создать каталог, указанный в аргументе;
     b. вывести содержимое каталога, указанного в аргументе;
     c. удалить каталог, указанный в аргументе;
+
     d. создать файл, указанный в аргументе;
     e. вывести содержимое файла, указанного в аргументе;
     f. удалить файл, указанный в аргументе;
+
     g. создать символьную ссылку на файл, указанный в аргументе;
     h. вывести содержимое символьной ссылки, указанный в аргументе;
     i. вывести содержимое файла, на который указывает символьная ссылка, указанная в аргументе;
     j. удалить символьную ссылку на файл, указанный в аргументе;
+
     k. создать жесткую ссылку на файл, указанный в аргументе;
     l. удалить жесткую ссылку на файл, указанный в аргументе;
     m. вывести права доступа к файлу, указанному в аргументе и количество жестких ссылок на него;
@@ -284,7 +287,8 @@
         ./remove_file test_file.txt
 
     create_symlink:
-        про функцию int symlink(const char *topath, const char *frompath): https://www.opennet.ru/man.shtml?topic=symlink&category=2&russian=0
+        int symlink(const char *topath, const char *frompath)
+        man: https://www.opennet.ru/man.shtml?topic=symlink&category=2&russian=0
 
         ln file_manager create_symlink
         touch file1.txt
@@ -292,6 +296,71 @@
         cd ../
         ls -la task2
 
-    ln file_manager print_symlink
-    ln file_manager print_symlink_target
-    ln file_manager remove_symlink
+    print_symlink:
+        int readlink(const char *path, char *buf, size_t bufsiz);  
+        readlink помещает содержимое символьной ссылки path в буфер buf длиной bufsiz
+        readlink man: https://www.opennet.ru/man.shtml?topic=readlink&category=2&russian=0
+
+        ln file_manager print_symlink
+        ./print_symlink symlink_file1.txt
+
+    print_symlink_file:
+        ln file_manager print_symlink_file
+        ./print_symlink_file symlink_file1.txt
+
+    remove_symlink:
+        про unlink: https://man7.org/linux/man-pages/man2/unlink.2.html
+        If the name referred to a symbolic link, the link is removed.
+
+        ln file_manager remove_symlink
+        ./remove_symlink symlink_file1.txt
+
+    create_hardlink:
+        The link() function shall create a new link (directory entry) for the existing file, path1.
+        link man: https://pubs.opengroup.org/onlinepubs/009696699/functions/link.html
+
+        echo "tekst_teskskskfnrejg" > file2.txt
+        ln file_manager create_hardlink
+        ./create_hardlink file2.txt hardlink.txt
+        ls -li file2.txt hardlink.txt
+
+    remove_hardlink:
+        про unlink: https://man7.org/linux/man-pages/man2/unlink.2.html
+
+        ln file_manager remove_hardlink
+        ./remove_hardlink hardlink.txt
+        ls -li file2.txt hardlink.txt - ls: cannot access 'hardlink.txt': No such file or directory
+
+    print_file_info:
+        stat man: https://www.opennet.ru/man.shtml?topic=stat&category=2&russian=0
+        нужны два поля stat: mode и nlink
+
+        ln file_manager print_file_info
+        
+    change_file_rights:
+        long strtol(const char *start, char **end, int radix)
+        Функция strtol() конвертирует строковое представление числа, которое хранится в строке start, в длинное целое и возвращает результат.
+        Основание системы счисления определя­ется параметром radix.
+
+        strtol man: https://www.c-cpp.ru/content/strtol-strtoul
+
+        ln file_manager change_file_rights
+        ./change_file_rights file2.txt 0666
+        ls -l file2.txt
+
+    хардлинк - альтернативное имя существующего inode в той же ФС
+            inode: копия
+            файл в другой ФС: нельзя (так как inode может принадлежать только одной ФС)
+            редактирование исходного файла: hardlink тоже изменится (это один объект)
+            удаление исходного файла: хардлинк останется и будет исправен
+            переименование исходного файла: продолжает работать
+            директория: нельзя 
+
+    симлинк - файл-указатель, содержащий путь к целевому
+            inode: свой уникальный (так как это другой файл)
+            файл/каталог в другой ФС: можно  
+            редактировании исходного файла: изменения через симлинк влияют на целевой файл (и наоборот).
+            удаление исходного файла: симлинк становится битым (указывает на удаленный файл)
+            переименование исходного файла: симлинк становится битым (причина выше)
+            директория: можно
+

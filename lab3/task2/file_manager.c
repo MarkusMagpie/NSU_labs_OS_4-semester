@@ -18,17 +18,17 @@ int create_file(char *argv[]);
 int print_file(char *argv[]);
 int remove_file(char *argv[]);
 
-// // g-j - создать symlink/вывести содержимое symlink/вывести содержимое файла на который указывает symlink/удалить symlink
-int create_symlink(int argc, char *argv[]);
-// int print_symlink(int argc, char *argv[]);
-// int print_symlink_file(int argc, char *argv[]);
-// int remove_symlink(int argc, char *argv[]);
+// g-j - создать symlink/вывести содержимое symlink/вывести содержимое файла на который указывает symlink/удалить symlink
+int create_symlink(char *argv[]);
+int print_symlink(char *argv[]);
+int print_symlink_file(char *argv[]);
+int remove_symlink(char *argv[]);
 
-// // k-n - создать hardlink/удалить hardlink/вывести права доступа к файлу и количество ссылок на него/изменить права доступа к файлу
-// int create_hardlink(int argc, char *argv[]);
-// int remove_hardlink(int argc, char *argv[]);
-// int print_file_info(int argc, char *argv[]);
-// int change_file_rights(int argc, char *argv[]);
+// k-n - создать hardlink/удалить hardlink/вывести права доступа к файлу и количество ссылок на него/изменить права доступа к файлу
+int create_hardlink(char *argv[]);
+int remove_hardlink(char *argv[]);
+int print_file_info(char *argv[]);
+int change_file_rights(char *argv[]);
 
 
 
@@ -121,9 +121,103 @@ int remove_file(char *argv[]) {
 }
 
 // g - создать символьную ссылку на файл, указанный в аргументе
-int create_symlink(int argc, char *argv[]) {
+int create_symlink(char *argv[]) {
     if (symlink(argv[1], argv[2])) {
         printf("ошибка symlink при создании символьной ссылки: %s -> %s\n", argv[1], argv[2]);
+        return -1;
+    }
+
+    return 0;
+}
+
+// h - вывести содержимое символьной ссылки, указанный в аргументе
+int print_symlink(char *argv[]) {
+    char buf[1024];
+    // int readlink(const char *path, char *buf, size_t bufsiz);
+    int len = readlink(argv[1], buf, sizeof(buf)-1);
+    if (len == -1) {
+        printf("ошибка при чтении симлинка: %s\n", argv[1]);
+        return -1;
+    }
+    buf[len] = '\0'; // из мана: readlink не добавляет в buf символ NUL. Сам добавляю идентификатор конца строки
+    
+    printf("Симлинк %s указывает на: %s\n", argv[1], buf);
+    
+    return 0;
+}
+
+// i - вывести содержимое файла, на который указывает символьная ссылка, указанная в аргументе
+int print_symlink_file(char *argv[]) {
+    char buf[1024];
+    int len = readlink(argv[1], buf, sizeof(buf)-1);
+    if (len == -1) {
+        printf("Ошибка при чтении симлинка: %s\n", argv[1]);
+        return -1;
+    }
+    buf[len] = '\0';
+
+    // хочу применить функцию print_file
+    char *file_argv[2];
+    file_argv[0] = "print_file"; // любое значение, не важно
+    file_argv[1] = buf;
+    print_file(file_argv);
+
+    return 0;
+}
+
+// j - удалить символьную ссылку на файл, указанный в аргументе
+int remove_symlink(char *argv[]) {
+    if (unlink(argv[1]) != 0) {
+        printf("ошибка unlink при удалении символьной ссылки: %s\n", argv[1]);
+        return -1;
+    }
+
+    return 0;
+}
+
+// k - создать жесткую ссылку на файл, указанный в аргументе
+int create_hardlink(char *argv[]) {
+    if (link(argv[1], argv[2]) != 0) {
+        printf("Ошибка link при создании жесткой ссылки: %s -> %s\n", argv[1], argv[2]);
+        return -1;
+    }
+
+    return 0;
+}
+
+// l - удалить жесткую ссылку на файл, указанный в аргументе
+int remove_hardlink(char *argv[]) {
+    if (unlink(argv[1]) != 0) {
+        printf("Ошибка удаления ссылки: %s\n", argv[1]);
+        return -1;
+    }
+
+    return 0;
+}
+
+// m - вывести права доступа к файлу, указанному в аргументе и количество жестких ссылок на него
+int print_file_info(char *argv[]) {
+    struct stat st;
+    if (stat(argv[1], &st) != 0) {
+        printf("Ошибка stat при получении метаданных файла: %s\n", argv[1]);
+        return -1;
+    }
+    
+    printf("Информация о файле %s:\n", argv[1]);
+    printf("1 - права доступа: %o\n", st.st_mode & 0777); // 0777 - маской зануляю биты не отвечающие за права доступа
+    printf("2 - количество жестких ссылок: %ld\n", st.st_nlink);
+
+    return 0;
+}
+
+// n - изменить права доступа к файлу, указанному в аргументе
+int change_file_rights(char *argv[]) {
+    // Convert a string to a long integer.
+    // long strtol(const char *start, char **end, int radix)
+    // выбрал базовую систему счисления 8 - ибо права доступа до 7 включительно
+    mode_t new_mode = strtol(argv[2], NULL, 8);
+    if (chmod(argv[1], new_mode) != 0) {
+        printf("ошибка chmod при изменении прав доступа к файлу: %s\n", argv[1]);
         return -1;
     }
 
@@ -166,8 +260,36 @@ int main(int argc, char *argv[]) {
             printf("\nКоманда remove_file успешно удалила файл: %s\n", argv[1]);
         }
     } else if (strcmp(cmd, "create_symlink") == 0) {
-        if (create_symlink(argc, argv) == 0) {
+        if (create_symlink(argv) == 0) {
             printf("\nКоманда create_symlink успешно создала символьную ссылку: %s -> %s\n", argv[1], argv[2]);
+        }
+    } else if (strcmp(cmd, "remove_symlink") == 0) {
+        if (remove_symlink(argv) == 0) {
+            printf("\nКоманда remove_symlink успешно удалила символьную ссылку: %s\n", argv[1]);
+        }
+    } else if (strcmp(cmd, "print_symlink") == 0) {
+        if (print_symlink(argv) == 0) {
+            printf("\nКоманда print_symlink успешно вывела содержимое символьной ссылки: %s\n", argv[1]);
+        }
+    } else if (strcmp(cmd, "print_symlink_file") == 0) {
+        if (print_symlink_file(argv) == 0) {
+            printf("\nКоманда print_symlink_file успешно вывела содержимое файла, на который указывает символьная ссылка: %s\n", argv[1]);
+        }
+    } else if (strcmp(cmd, "create_hardlink") == 0) {
+        if (create_hardlink(argv) == 0) {
+            printf("\nКоманда create_hardlink успешно создала hardlink: %s -> %s\n", argv[1], argv[2]);
+        }
+    } else if (strcmp(cmd, "remove_hardlink") == 0) {
+        if (remove_hardlink(argv) == 0) {
+            printf("\nКоманда remove_hardlink успешно удалила hardlink: %s\n", argv[1]);
+        }
+    } else if (strcmp(cmd, "print_file_info") == 0) {
+        if (print_file_info(argv) == 0) {
+            printf("\nКоманда print_file_info успешно вывела информацию о файле: %s\n", argv[1]);
+        }
+    } else if (strcmp(cmd, "change_file_rights") == 0) {
+        if (change_file_rights(argv) == 0) {
+            printf("\nКоманда change_file_rights успешно изменила права доступа к файлу: %s\n", argv[1]);
         }
     } else {
         printf("Неизвестная команда!\n");
