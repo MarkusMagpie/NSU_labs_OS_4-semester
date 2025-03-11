@@ -30,6 +30,32 @@ int remove_hardlink(char *argv[]);
 int print_file_info(char *argv[]);
 int change_file_rights(char *argv[]);
 
+struct command {
+    char *name;
+    int (*func)(char *argv[]);
+};
+
+struct command entries[] = {
+    {"create_dir", create_dir},
+    {"list_dir", list_dir},
+    {"remove_dir", remove_dir},
+
+    {"create_file", create_file},
+    {"read_file", print_file},
+    {"remove_file", remove_file},
+
+    {"create_symlink", create_symlink},
+    {"print_symlink", print_symlink},
+    {"print_symlink_file", print_symlink_file},
+    {"remove_symlink", remove_symlink},
+
+    {"create_hardlink", create_hardlink},
+    {"remove_hardlink", remove_hardlink},
+    {"print_file_info", print_file_info},
+    {"change_file_rights", change_file_rights},
+    
+    {NULL, NULL} // для завершения цикла
+};
 
 
 // реализации функций
@@ -233,67 +259,79 @@ int main(int argc, char *argv[]) {
     }
 
     char *cmd = basename(argv[0]);
-    // printf("Команда: %s\n", cmd);
+    // printf("команда: %s\n", cmd);
     
-    if (strcmp(cmd, "create_dir") == 0) {
-        if (create_dir(argv) == 0) {
-            printf("\nКоманда create_dir успешно создала каталог: %s\n", argv[1]);
+    // if (strcmp(cmd, "create_dir") == 0) {
+    //     if (create_dir(argv) == 0) {
+    //         printf("\nКоманда create_dir успешно создала каталог: %s\n", argv[1]);
+    //     }
+    // } else if (strcmp(cmd, "list_dir") == 0) {
+    //     if (list_dir(argv) == 0) {
+    //         printf("\nКоманда list_dir успешно вывела содержимое каталога: %s\n", argv[1]);
+    //     }
+    // } else if (strcmp(cmd, "remove_dir") == 0) {
+    //     if (remove_dir(argv) == 0) {
+    //         printf("\nКоманда remove_dir успешно удалила каталог: %s\n", argv[1]);
+    //     }
+    // } else if (strcmp(cmd, "create_file") == 0) {
+    //     if (create_file(argv) == 0) {
+    //         printf("\nКоманда create_file успешно создала файл: %s\n", argv[1]);
+    //     }
+    // } else if (strcmp(cmd, "read_file") == 0) {
+    //     if (print_file(argv) == 0) {
+    //         printf("\nКоманда read_file успешно вывела содержимое файла: %s\n", argv[1]);
+    //     }
+    // } else if (strcmp(cmd, "remove_file") == 0) {
+    //     if (remove_file(argv) == 0) {
+    //         printf("\nКоманда remove_file успешно удалила файл: %s\n", argv[1]);
+    //     }
+    // } else if (strcmp(cmd, "create_symlink") == 0) {
+    //     if (create_symlink(argv) == 0) {
+    //         printf("\nКоманда create_symlink успешно создала символьную ссылку: %s -> %s\n", argv[1], argv[2]);
+    //     }
+    // } else if (strcmp(cmd, "remove_symlink") == 0) {
+    //     if (remove_symlink(argv) == 0) {
+    //         printf("\nКоманда remove_symlink успешно удалила символьную ссылку: %s\n", argv[1]);
+    //     }
+    // } else if (strcmp(cmd, "print_symlink") == 0) {
+    //     if (print_symlink(argv) == 0) {
+    //         printf("\nКоманда print_symlink успешно вывела содержимое символьной ссылки: %s\n", argv[1]);
+    //     }
+    // } else if (strcmp(cmd, "print_symlink_file") == 0) {
+    //     if (print_symlink_file(argv) == 0) {
+    //         printf("\nКоманда print_symlink_file успешно вывела содержимое файла, на который указывает символьная ссылка: %s\n", argv[1]);
+    //     }
+    // } else if (strcmp(cmd, "create_hardlink") == 0) {
+    //     if (create_hardlink(argv) == 0) {
+    //         printf("\nКоманда create_hardlink успешно создала hardlink: %s -> %s\n", argv[1], argv[2]);
+    //     }
+    // } else if (strcmp(cmd, "remove_hardlink") == 0) {
+    //     if (remove_hardlink(argv) == 0) {
+    //         printf("\nКоманда remove_hardlink успешно удалила hardlink: %s\n", argv[1]);
+    //     }
+    // } else if (strcmp(cmd, "print_file_info") == 0) {
+    //     if (print_file_info(argv) == 0) {
+    //         printf("\nКоманда print_file_info успешно вывела информацию о файле: %s\n", argv[1]);
+    //     }
+    // } else if (strcmp(cmd, "change_file_rights") == 0) {
+    //     if (change_file_rights(argv) == 0) {
+    //         printf("\nКоманда change_file_rights успешно изменила права доступа к файлу: %s\n", argv[1]);
+    //     }
+    // } else {
+    //     printf("Неизвестная команда!\n");
+    //     return -1;
+    // }
+
+    int i;
+    for (i = 0; entries[i].name != NULL; i++) {
+        if (strcmp(cmd, entries[i].name) == 0) {
+            if (entries[i].func(argv) == 0) {
+                printf("\nmain: команда %s выполнена: %s\n", cmd, argv[1]);
+            } else {
+                printf("\nmain: команда %s не выполнена: %s\n", cmd, argv[1]);
+            }
+            return 0;
         }
-    } else if (strcmp(cmd, "list_dir") == 0) {
-        if (list_dir(argv) == 0) {
-            printf("\nКоманда list_dir успешно вывела содержимое каталога: %s\n", argv[1]);
-        }
-    } else if (strcmp(cmd, "remove_dir") == 0) {
-        if (remove_dir(argv) == 0) {
-            printf("\nКоманда remove_dir успешно удалила каталог: %s\n", argv[1]);
-        }
-    } else if (strcmp(cmd, "create_file") == 0) {
-        if (create_file(argv) == 0) {
-            printf("\nКоманда create_file успешно создала файл: %s\n", argv[1]);
-        }
-    } else if (strcmp(cmd, "read_file") == 0) {
-        if (print_file(argv) == 0) {
-            printf("\nКоманда read_file успешно вывела содержимое файла: %s\n", argv[1]);
-        }
-    } else if (strcmp(cmd, "remove_file") == 0) {
-        if (remove_file(argv) == 0) {
-            printf("\nКоманда remove_file успешно удалила файл: %s\n", argv[1]);
-        }
-    } else if (strcmp(cmd, "create_symlink") == 0) {
-        if (create_symlink(argv) == 0) {
-            printf("\nКоманда create_symlink успешно создала символьную ссылку: %s -> %s\n", argv[1], argv[2]);
-        }
-    } else if (strcmp(cmd, "remove_symlink") == 0) {
-        if (remove_symlink(argv) == 0) {
-            printf("\nКоманда remove_symlink успешно удалила символьную ссылку: %s\n", argv[1]);
-        }
-    } else if (strcmp(cmd, "print_symlink") == 0) {
-        if (print_symlink(argv) == 0) {
-            printf("\nКоманда print_symlink успешно вывела содержимое символьной ссылки: %s\n", argv[1]);
-        }
-    } else if (strcmp(cmd, "print_symlink_file") == 0) {
-        if (print_symlink_file(argv) == 0) {
-            printf("\nКоманда print_symlink_file успешно вывела содержимое файла, на который указывает символьная ссылка: %s\n", argv[1]);
-        }
-    } else if (strcmp(cmd, "create_hardlink") == 0) {
-        if (create_hardlink(argv) == 0) {
-            printf("\nКоманда create_hardlink успешно создала hardlink: %s -> %s\n", argv[1], argv[2]);
-        }
-    } else if (strcmp(cmd, "remove_hardlink") == 0) {
-        if (remove_hardlink(argv) == 0) {
-            printf("\nКоманда remove_hardlink успешно удалила hardlink: %s\n", argv[1]);
-        }
-    } else if (strcmp(cmd, "print_file_info") == 0) {
-        if (print_file_info(argv) == 0) {
-            printf("\nКоманда print_file_info успешно вывела информацию о файле: %s\n", argv[1]);
-        }
-    } else if (strcmp(cmd, "change_file_rights") == 0) {
-        if (change_file_rights(argv) == 0) {
-            printf("\nКоманда change_file_rights успешно изменила права доступа к файлу: %s\n", argv[1]);
-        }
-    } else {
-        printf("Неизвестная команда!\n");
-        return -1;
     }
 
     return 0;
