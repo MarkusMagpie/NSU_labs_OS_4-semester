@@ -177,6 +177,8 @@
                 в буфер buffer+read_total. Текущая позиция файла не изменяется.
 
             Про разницу в pread и read: https://www.quora.com/What-is-the-difference-between-the-read-and-pread-system-calls-in-Unix
+                read начинает читать с текущего оффсета в файле
+                pread сискол начинает читать с того оффсета, который я указываю параметром
 
             https://www.opennet.ru/man.shtml?topic=pread&category=2&russian=0
         pwrite(dest_fd, buffer + write_total, filesize - write_total, write_total);
