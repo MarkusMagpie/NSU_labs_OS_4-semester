@@ -196,6 +196,8 @@
 
             https://www.opennet.ru/man.shtml?topic=close&category=2&russian=0
 
+
+
     ? изменить функцию чтобы не читать весь файл в память
     -   команда dd
         считать кэш командой md5sum
