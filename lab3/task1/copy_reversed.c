@@ -204,9 +204,8 @@ int main(int argc, char *argv[]) {
     // записываю в target_path строку в формате: parent_dir/reversed_dir_name
     snprintf(target_path, target_path_len, "%s/%s", parent_dir, reversed_dir_name); // куда, сколько, что
 
-    // создание целевого каталога
-    // 0755 - права доступа к директории
-    if (mkdir(target_path, 0755) < 0) {
+    // создание целевого каталога с правами доступа исходного
+    if (mkdir(target_path, st.st_mode) < 0) {
         printf("ошибка создания (mkdir) целевого каталога %s\n", target_path);
         free(src_path_copy);
         free(src_path_copy2);

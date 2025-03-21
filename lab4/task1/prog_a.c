@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 int global_initialized = 10; // iv - глобальная инициализированная переменная
-int global_uninitialized;    // v - глобальная неинициализированная переменная (тупо объявить?)
+int global_uninitialized;    // v - глобальная неинициализированная переменная (просто объявил)
 const int global_const = 20; // vi - глобальная константа
 
 void function() {
@@ -20,6 +20,9 @@ int main() {
     printf("iv - адрес глобальной переменной: %p\n", (void*)&global_initialized);
     printf("v - адрес глобальной неинициализированной переменной: %p\n", (void*)&global_uninitialized);
     printf("vi - адрес глобальной константы: %p\n", (void*)&global_const);
+
+    printf("Для завершения нажми кнопку \n");
+    getchar();
 
     return 0;
 }

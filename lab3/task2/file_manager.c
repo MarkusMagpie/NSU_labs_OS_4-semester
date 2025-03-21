@@ -160,6 +160,7 @@ int create_symlink(char *argv[]) {
 int print_symlink(char *argv[]) {
     char buf[1024];
     // int readlink(const char *path, char *buf, size_t bufsiz);
+    // помещает содержимое символьной ссылки path в буфер buf длиной bufsiz
     int len = readlink(argv[1], buf, sizeof(buf)-1);
     if (len == -1) {
         printf("ошибка при чтении симлинка: %s\n", argv[1]);
