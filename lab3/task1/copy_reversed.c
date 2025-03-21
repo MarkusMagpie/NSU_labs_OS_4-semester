@@ -8,6 +8,8 @@
 #include <fcntl.h> // O_RDONLY
 #include <unistd.h> // close и тд
 
+#define BLOCK_SIZE 1024 // это блок для чтения и записи
+
 
 // переворачивания строки
 // возвращаем выделенную память с перевернутой строкой
@@ -25,6 +27,15 @@ char* reverse_string(const char *str) {
     mem[len] = '\0';
 
     return mem;
+}
+
+// новая функция для переворота блока байтов
+void reverse_block(char *buffer, size_t size) {
+    for (size_t i = 0; i < size / 2; i++) {
+        char temp = buffer[i];
+        buffer[i] = buffer[size - 1 - i];
+        buffer[size - 1 - i] = temp;
+    }
 }
 
 // функция копирования файла с переворотом содержимого
@@ -143,6 +154,79 @@ int copy_file_reversed(const char *src_path, const char *dest_path) {
     close(dest_fd);
     return 0;
 }
+
+int copy_file_reversed2(const char *src_path, const char *dest_path) {
+    struct stat src_stat;
+    if (stat(src_path, &src_stat) < 0) {
+        printf("ошибка при получении меттаданных исходного файла: %s\n", src_path);
+        return -1;
+    }
+
+    // открываем исходный
+    int src_fd = open(src_path, O_RDONLY);
+    if (src_fd == -1) {
+        printf("Ошибка open. Returned value -1.\n");
+    }
+
+    // создал ЦЕЛЕВОЙ файл с теми же правами доступа
+    int dest_fd = open(dest_path, O_WRONLY | O_CREAT | O_TRUNC, src_stat.st_mode);
+    if (dest_fd == -1) {
+        printf("ошибка при создании целевого файла: %s\n", dest_path);
+        goto cleanup;
+    }
+
+    // man: Функции truncate и ftruncate устанавливают длину обычного файла с именем path или файловым дескриптором fd в length байт.
+    int ret = ftruncate(dest_fd, src_stat.st_size); 
+    if (ret == -1) {
+        printf("ошибка при ftruncate установке размера целевого файла: %s\n", dest_path);
+        goto cleanup;
+    }
+
+    // буфер для блока
+    char *buffer = malloc(BLOCK_SIZE);
+    if (buffer == NULL) {
+        printf("ошибка выделения памяти для содержимого файла: %s\n", src_path);
+        goto cleanup;
+    }
+
+    // обрабатываем файл блоками с конца
+    off_t remaining = src_stat.st_size; // количество оставшихся байт - сначала это просто размер исходного файла в байтажжж
+    off_t dest_pos = 0;
+
+    while (remaining > 0) {
+        // размер текущего блока
+        size_t block_size = (remaining > BLOCK_SIZE) ? BLOCK_SIZE : remaining;
+        off_t read_pos = remaining - block_size;
+
+        // чтение блока
+        ssize_t bytes_read = pread(src_fd, buffer, block_size, read_pos);
+        if (bytes_read == -1) {
+            printf("pread failed\n");
+            goto cleanup;
+        }
+
+        reverse_block(buffer, bytes_read);
+
+        // писание блока в начало целевого файла (в dest_fd) начиная со смещения dest_pos
+        ssize_t bytes_written = pwrite(dest_fd, buffer, bytes_read, dest_pos);
+        if (bytes_written == -1) {
+            printf("pwrite failed\n");
+            goto cleanup;
+        }
+
+        dest_pos += bytes_written;
+        remaining -= bytes_read;
+    }
+
+    ret = 0;
+
+cleanup:
+    if (buffer) free(buffer);
+    if (src_fd != -1) close(src_fd);
+    if (dest_fd != -1) close(dest_fd);
+    return ret;
+}
+
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -281,7 +365,7 @@ int main(int argc, char *argv[]) {
         // full_src_path - путь к оригинальному файлу, 
         // full_dest_path - к перевернутому 
         // осталось скопировать содержимое full_src_path в full_dest_path в обратном порядке
-        if (copy_file_reversed(full_src_path, full_dest_path) != 0) {
+        if (copy_file_reversed2(full_src_path, full_dest_path) != 0) {
             fprintf(stderr, "Не удалось скопировать файл: %s\n", full_src_path);
         }
 

@@ -202,6 +202,45 @@
     -   команда dd
         считать кэш командой md5sum
 
+    -   сейчас функция читает весь файл в буфер, переворачивает его и записывает. 
+        Для больших файлов это неэффективно, тк требует много памяти. 
+        пример: файл в 10 ГБ займет 10 ГБ оперативки
+
+        ftruncate 
+            int truncate(const char *path, off_t length);
+            int ftruncate(int fd, off_t length);
+
+            Функции truncate и ftruncate устанавливают длину обычного файла с именем path или файловым дескриптором fd в length байт.
+            Если файл до этой операции был длиннее, то отсеченные данные теряются. Если файл был короче, 
+                то он увеличивается, а добавленная часть заполняется нулевыми байтами.
+            Указатель на файл не меняется. 
+
+            разница: truncate хавает путь к файлу, а ftruncate работает с дескриптором 
+
+            https://www.opennet.ru/man.shtml?topic=ftruncate&category=2&russian=0
+
+        обнолвенная логика:
+            1 файл обрабатывается блоками фиксированного размера BLOCK_SIZE
+            2 чтение начинается с конца файла, блоки записываются в начало целевого файла
+        
+        тест: 
+            gcc copy_reversed.c -o copy
+            ./copy testdir2
+
+        проверка:
+        sorokinm@sorokinm-CREFG-XX:~/Desktop/NSU_labs_OS_4semester/lab3/task1$ ls -l testdir2/file1.txt 2ridtset/txt.1elif
+        -rw-rw-r-- 1 sorokinm sorokinm 14 Mar 21 21:26 2ridtset/txt.1elif
+        -rw-rw-r-- 1 sorokinm sorokinm 14 Mar 21 01:39 testdir2/file1.txt
+        5 столбик - вижу что в обоих файлах 14 байт (13 + 1 на \n = 14)
+
+        hexdump -C testdir2/file1.txt
+        hexdump -C 2ridtset/txt.1elif
+        00000000  68 65 6c 6c 6f 20 66 72  69 65 6e 64 73 0a        |hello friends.|
+        0000000e
+        00000000  0a 73 64 6e 65 69 72 66  20 6f 6c 6c 65 68        |.sdneirf olleh|
+        0000000e
+        вижу что все 14 байт идут в обратном порядке 
+
 
 
     ! как работает макрос S_ISDIR(m)
