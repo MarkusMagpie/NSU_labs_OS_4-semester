@@ -142,6 +142,35 @@
                 Const глобальные переменные – внутреннее связывание.
                 Функции – внешнее связывание.
 
+        -   эксперимент в dop_a
+            
+            cd dop_a
+            gcc file1.c file2.c -o test
+            ./test
+            nm test | grep -E 'global_var|static_var|local_static'
+
+            global_var - глобальная переменная с внешним связыванием
+                видна из других файлов через ключевое слово extern 
+
+                extern keyword - used to declare a variable or a function whose definition is present in some other file. 
+                It extends the visibility of the variables and functions in C to multiple source files.
+                https://www.geeksforgeeks.org/understanding-extern-keyword-in-c/
+                я фактически говорю компилятору - иди ищи инициализированную переменную в других файлах в пределах родительской директории 
+
+            static_var - татическая переменная с внутренним связыванием
+                не видна из других файлов (при попытке использовать extern int static_var ловлю ошибку линковки)
+                Находится в секции .data, но с ограниченной видимостью
+
+            local_static.0 - статическая переменная внутри функции func() в file1.c
+                так как статик сохраняет значение между вызовами функции
+                видима только внутри своей единицы трансляции
+
+            и тут как-будто такая иерархия что вот есть локальный статик, есть глобальный а есть просто глобальная переменная. 
+                Они все лежат в .data, но области видимости у них разные:
+                    global_var - могу получать из других файлов через extern
+                    static_vat - не могу но в файле она глобальная
+                    local_static - статик в пределах одной функции
+
 
 
         ?   4.1 - зачем разделять bss и data
