@@ -3,8 +3,8 @@
 #include <stdlib.h>
 
 int main(int argc, char *argv[]) {
-    printf("PID: %d\n", getpid()); // i. выводит pid процесса;
-    sleep(1);                      // ii. ждет 1 секунду;
+    printf("PID: %d\n", getpid());  // i. выводит pid процесса;
+    sleep(1);                       // ii. ждет 1 секунду;
 
     if (argc == 1) {                                    // iii. делаем exec НОтолько при первом запуске
         char *args[] = {argv[0], "aaa", NULL};
