@@ -38,123 +38,6 @@ void reverse_block(char *buffer, size_t size) {
     }
 }
 
-// функция копирования файла с переворотом содержимого
-// 0 при успехе и -1 иначе
-int copy_file_reversed(const char *src_path, const char *dest_path) {
-    struct stat src_stat;
-
-    if (stat(src_path, &src_stat) < 0) {
-        printf("ошибка при получении меттаданных исходного файла: %s\n", src_path);
-        return -1;
-    }
-    // проверка что исходный файл -  регулярный осуществляется вне этой функции. это не ее задача
-
-    // открываем исходный
-    int src_fd = open(src_path, O_RDONLY);
-    if (src_fd == -1) {
-        printf("Ошибка open. Returned value -1.\n");
-    }
-
-    // размер файла
-    size_t filesize = lseek(src_fd, 0, SEEK_END);
-    if (filesize == -1) {
-        printf("ошибка при получении размера файла: %s\n", src_path);
-        close(src_fd);
-        return -1;
-    }
-
-    char *buffer = malloc(filesize);
-    if (buffer == NULL) {
-        printf("ошибка выделения памяти для содержимого файла: %s\n", src_path);
-        close(src_fd);
-        return -1;
-    }
-
-    int read_total = 0;
-    int try_count = 0;
-    while (read_total < filesize && try_count < 10) {
-        size_t read_bytes = pread(src_fd, buffer + read_total, filesize - read_total, read_total);
-        if (read_bytes == -1) {
-            printf("ошибка при чтении файла: %s\n", src_path);
-            free(buffer);
-            close(src_fd);
-            return -1;
-        }
-        read_total += read_bytes;
-        try_count++;
-    }
-
-    // 10 попыток не хватило
-    if (read_total != filesize) {
-        printf("Ошибка чтения файла (изменился за время чтения?): %s\n", src_path);
-        free(buffer);
-        close(src_fd);
-        return -1;
-    }
-
-    // переворачиваем содержимого (средний на месте)
-    for (size_t i = 0; i < filesize/2; i++) {
-        char temp = buffer[i];
-        buffer[i] = buffer[filesize - 1 - i];
-        buffer[filesize - 1 - i] = temp;
-    }
-
-    // создал ЦЕЛЕВОЙ файл с теми же правами доступа
-    int dest_fd = open(dest_path, O_WRONLY | O_CREAT | O_TRUNC, src_stat.st_mode);
-    if (dest_fd == -1) {
-        printf("ошибка при создании целевого файла: %s\n", dest_path);
-        free(buffer);
-        close(src_fd);
-        return -1;
-    }
-
-    try_count = 0;
-    int write_total = 0;
-    while (write_total < filesize && try_count < 10) {
-        size_t write_bytes = pwrite(dest_fd, buffer + write_total, filesize - write_total, write_total);
-        if (write_bytes == -1) {
-            printf("ошибка при записи файла: %s\n", dest_path);
-            free(buffer);
-            close(src_fd);
-            close(dest_fd);
-            return -1;
-        }
-        write_total += write_bytes;
-        try_count++;
-    }
-
-    // случай если истратил все 10 попыток но файл все равно не записался полностью
-    if (write_total != filesize) {
-        printf("ошибка при записи файла (изменился за время записи?): %s\n", dest_path);
-        free(buffer);
-        close(src_fd);
-        close(dest_fd);
-        return -1;
-    }
-
-    /* 
-    1) нюанс с open строка 92 - если файл dest_path существовал то его права не изменятся. Чтобы их изменить использую fchmod 
-    также резонно делать смену прав после записи нужного нам содержимого исходника 
-
-    2) umask. права доступа созданного файла равны mode & ~umask, где umask(user file-creation mode mask) - текущая маска процесса (покажи командой umask)
-    чтобы избежать несовпадения прав после наложения umask, использую fchmod
-    
-    в тетрадке ПОКАЖИ вычисления почему работает без
-    */
-    if (fchmod(dest_fd, src_stat.st_mode) != 0) {
-        printf("не удалось установить права доступа как у исходного файла: %s\n", dest_path);
-        free(buffer);
-        close(src_fd);
-        close(dest_fd);
-        return -1;
-    }
-
-    free(buffer);
-    close(src_fd);
-    close(dest_fd);
-    return 0;
-}
-
 int copy_file_reversed2(const char *src_path, const char *dest_path) {
     struct stat src_stat;
     if (stat(src_path, &src_stat) < 0) {
@@ -162,20 +45,23 @@ int copy_file_reversed2(const char *src_path, const char *dest_path) {
         return -1;
     }
 
-    // открываем исходный
+    // открываем исходный файл для чтения 
     int src_fd = open(src_path, O_RDONLY);
     if (src_fd == -1) {
-        printf("Ошибка open. Returned value -1.\n");
+        printf("ошибка open.\n");
+        close(src_fd);
+        return -1;
     }
 
     // создал ЦЕЛЕВОЙ файл с теми же правами доступа
     int dest_fd = open(dest_path, O_WRONLY | O_CREAT | O_TRUNC, src_stat.st_mode);
     if (dest_fd == -1) {
         printf("ошибка при создании целевого файла: %s\n", dest_path);
-        goto cleanup;
+        close(src_fd);
+        return -1;
     }
 
-    // man: Функции truncate и ftruncate устанавливают длину обычного файла с именем path или файловым дескриптором fd в length байт.
+    // man: Функции truncate и ftruncate устанавливают длину файлового дексриптора dest_fd в src_stat.st_size байт
     int ret = ftruncate(dest_fd, src_stat.st_size); 
     if (ret == -1) {
         printf("ошибка при ftruncate установке размера целевого файла: %s\n", dest_path);
@@ -190,27 +76,50 @@ int copy_file_reversed2(const char *src_path, const char *dest_path) {
     }
 
     // обрабатываем файл блоками с конца
-    off_t remaining = src_stat.st_size; // количество оставшихся байт - сначала это просто размер исходного файла в байтажжж
-    off_t dest_pos = 0;
+    size_t remaining = src_stat.st_size; // количество оставшихся байт - сначала это просто размер исходного файла в байтах
+    size_t dest_pos = 0;
 
     while (remaining > 0) {
         // размер текущего блока
         size_t block_size = (remaining > BLOCK_SIZE) ? BLOCK_SIZE : remaining;
-        off_t read_pos = remaining - block_size;
+        size_t read_pos = remaining - block_size;
 
-        // чтение блока
-        ssize_t bytes_read = pread(src_fd, buffer, block_size, read_pos);
-        if (bytes_read == -1) {
-            printf("pread failed\n");
+        int try_count = 0;
+        size_t total_read = 0;
+        size_t bytes_read = 0;
+        while (bytes_read < block_size && try_count < 10) {
+            // чтение блока ИЗ src_fd максимум block_size байтов в буфер buffer с позиции read_pos
+            bytes_read = pread(src_fd, buffer, block_size, read_pos);
+            if (bytes_read == -1) {
+                printf("ошибка при чтении файла: %s\n", src_path);
+                goto cleanup;
+            }   
+            if (bytes_read == 0) break;
+            total_read += bytes_read;
+            try_count++;
+        }
+        if (total_read != block_size) {
+            printf("ошибка чтения файла (изменился за время чтения?): %s\n", src_path);
             goto cleanup;
         }
 
         reverse_block(buffer, bytes_read);
 
-        // писание блока в начало целевого файла (в dest_fd) начиная со смещения dest_pos
-        ssize_t bytes_written = pwrite(dest_fd, buffer, bytes_read, dest_pos);
-        if (bytes_written == -1) {
-            printf("pwrite failed\n");
+        try_count = 0;
+        size_t total_written = 0;
+        size_t bytes_written = 0;
+        while (bytes_written < block_size && try_count < 10) {
+            // писание блока в dest_fd максимум bytes_read байтов из буфера buffer начиная со смещения dest_pos 
+            bytes_written = pwrite(dest_fd, buffer, bytes_read, dest_pos);
+            if (bytes_written == -1) {
+                printf("ошибка при записи файла: %s\n", dest_path);
+                goto cleanup;
+            }
+            total_written += bytes_written;
+            try_count++;
+        }
+        if (total_written != block_size) {
+            printf("ошибка при записи файла (изменился за время записи?): %s\n", dest_path);
             goto cleanup;
         }
 
@@ -228,6 +137,7 @@ cleanup:
 }
 
 
+
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         printf("нужно указать только один аргумент - путь к каталогу\n");
@@ -241,7 +151,6 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    // printf("выввод st_mode файла %s: %016b \n ", argv[1], st.st_mode);
 
     if (!S_ISDIR(st.st_mode)) {
         printf("путь не является каталогом: %s\n", argv[1]);

@@ -241,6 +241,20 @@
         0000000e
         вижу что все 14 байт идут в обратном порядке 
 
+        xxd testdir2/file1.txt
+        xxd 2ridtset/txt.1elif
+        00000000: 6865 6c6c 6f20 6672 6965 6e64 730a       hello friends.
+        00000000: 0a73 646e 6569 7266 206f 6c6c 6568       .sdneirf olleh
+
+        проверка с помощью md5sum  
+        md5sum - вычисляет и сверяет контрольные суммы по алгоритму MD5
+
+        md5sum testdir2/file1.txt 
+        gcc copy_reversed.c -o copy && ./copy testdir2/ 
+        rm -r testdir2
+        gcc copy_reversed.c -o copy && ./copy 2ridtset/
+        md5sum testdir2/file1.txt
+
 
 
     ! как работает макрос S_ISDIR(m)
