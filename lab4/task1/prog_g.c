@@ -5,7 +5,7 @@
 int main() {
     const char *env_var = "ENV_VAR";
 
-    // g. Заведите переменную окружения со значением "aaa"
+    // g. заведите переменную окружения 
     setenv(env_var, "aaa", 0);
 
     printf("--------------------------------------\n");
@@ -23,7 +23,7 @@ int main() {
     printf("новое значение: %s\n", value);
 
     printf("--------------------------------------\n");
-    system("echo $MY_ENV_VAR");
+    system("echo $ENV_VAR");
 
     return 0;
 }

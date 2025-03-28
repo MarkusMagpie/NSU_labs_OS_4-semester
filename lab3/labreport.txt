@@ -228,7 +228,7 @@
             ./copy testdir2
 
         проверка:
-        sorokinm@sorokinm-CREFG-XX:~/Desktop/NSU_labs_OS_4semester/lab3/task1$ ls -l testdir2/file1.txt 2ridtset/txt.1elif
+        ls -l testdir2/file1.txt 2ridtset/txt.1elif
         -rw-rw-r-- 1 sorokinm sorokinm 14 Mar 21 21:26 2ridtset/txt.1elif
         -rw-rw-r-- 1 sorokinm sorokinm 14 Mar 21 01:39 testdir2/file1.txt
         5 столбик - вижу что в обоих файлах 14 байт (13 + 1 на \n = 14)
@@ -241,6 +241,8 @@
         0000000e
         вижу что все 14 байт идут в обратном порядке 
 
+        проврека с помощью xxd 
+        xxd - creating and analyzing hexadecimal dumps from files
         xxd testdir2/file1.txt
         xxd 2ridtset/txt.1elif
         00000000: 6865 6c6c 6f20 6672 6965 6e64 730a       hello friends.
@@ -248,9 +250,30 @@
 
         проверка с помощью md5sum  
         md5sum - вычисляет и сверяет контрольные суммы по алгоритму MD5
-
+        
         md5sum testdir2/file1.txt 
         gcc copy_reversed.c -o copy && ./copy testdir2/ 
+        rm -r testdir2
+        gcc copy_reversed.c -o copy && ./copy 2ridtset/
+        md5sum testdir2/file1.txt
+
+    ? 3.1 где нужен ненулевой код возврата фкнуции и разобраться зачем это нужно ?
+    -   0 - индикатор успешного завершения программы
+    -   ненулевые значения - ошибка
+
+    ?   3.1 через dd сгенерировать гигабайтный файл, провести на нем md5sum тест ?
+    -   https://blog.kubesimplify.com/the-complete-guide-to-the-dd-command-in-linux
+        
+        dd if=/dev/urandom of=testdir2/file1.txt bs=1M count=1024
+            dev/urandom - генерирует псевдослучайные байты
+            of=testdir2/file1.txt - имя выходного файла
+            bs=1M - размер блока 1 МБ
+            count=1024 - количество блоков 1МБ * 1024 = 1ГБ 
+    - сам тест: 
+        dd if=/dev/urandom of=testdir2/file1.txt bs=1M count=1024
+        ls -l testdir2/file1.txt 
+        md5sum testdir2/file1.txt
+        gcc copy_reversed.c -o copy && ./copy testdir2/
         rm -r testdir2
         gcc copy_reversed.c -o copy && ./copy 2ridtset/
         md5sum testdir2/file1.txt

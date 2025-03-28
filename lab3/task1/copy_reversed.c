@@ -141,20 +141,19 @@ cleanup:
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         printf("нужно указать только один аргумент - путь к каталогу\n");
-        return 0;
+        return 1;
     }
 
     // существует ли указанный путь и является ли директорией???
     struct stat st;
     if (stat(argv[1], &st) < 0) {
         printf("указанный путь не существует\n");
-        return 0;
+        return 1;
     }
-
 
     if (!S_ISDIR(st.st_mode)) {
         printf("путь не является каталогом: %s\n", argv[1]);
-        return 0;
+        return 1;
     }
 
     // ПОЛУЧАЕМ SRC КАТАЛОГ(basename) И РОДИТЕЛЬСКИЙ(dirname) 
@@ -163,13 +162,13 @@ int main(int argc, char *argv[]) {
     char *src_path_copy = strdup(argv[1]);
     if (!src_path_copy) {
         printf("ошибка выделения памяти для имени каталога: strdup\n");
-        return 0;
+        return 1;
     }
     char *src_dir_name = basename(src_path_copy); // извлек ПОСЛДЕНИЙ компонент в имени файла (име это аргумент)
     char *reversed_dir_name = reverse_string(src_dir_name);
     if (!reversed_dir_name) {
         free(src_path_copy); // в strdup маллоком выделяли память
-        return 0;
+        return 1;
     }
 
     // получаем родительский каталог исходного 
@@ -178,7 +177,7 @@ int main(int argc, char *argv[]) {
         printf("ошибка выделения памяти для имени каталога 2: strdup\n");
         free(src_path_copy);
         free(reversed_dir_name);
-        return 0;
+        return 1;
     }
     char *parent_dir = dirname(src_path_copy2);
 
@@ -192,7 +191,7 @@ int main(int argc, char *argv[]) {
         free(src_path_copy);
         free(src_path_copy2);
         free(reversed_dir_name);
-        return 0;
+        return 1;
     }
     // записываю в target_path строку в формате: parent_dir/reversed_dir_name
     snprintf(target_path, target_path_len, "%s/%s", parent_dir, reversed_dir_name); // куда, сколько, что
@@ -204,7 +203,7 @@ int main(int argc, char *argv[]) {
         free(src_path_copy2);
         free(reversed_dir_name);
         free(target_path);
-        return 0;
+        return 1;
     }
 
     // открытие исходного каталога (не созданного!) для чтения
@@ -215,7 +214,7 @@ int main(int argc, char *argv[]) {
         free(src_path_copy2);
         free(reversed_dir_name);
         free(target_path);
-        return 0;
+        return 1;
     }
 
     struct dirent *entry;
