@@ -126,6 +126,12 @@
             cat /proc/PPID/status | grep State
         3 терминал 
             cat /proc/CPID/status | grep State
+
+        If a parent creates a child, but fails to perform a wait(), then an entry for the zombie child 
+            will be maintained indefinitely in the kernel’s process table. 
+        ответ: https://stackoverflow.com/questions/74923603/are-zombie-processes-picked-up-by-init-eventually-or-not
+
+
     
     b
         Объясните какую проблему решает данное состояние.
@@ -161,10 +167,17 @@
             1 - через пару секунд после запуска родитель - зомби 
             2 - через 30 секунд дочерний процесс завершится
             3 - PPID дочернего процесса изменится на 1 (init) после завершения родителя
-                init запускается первым при загрузке системы и управляет всеми процессами. он же периодически "усыновляет" 
+                init запускается первым при загрузке системы и управляет всеми процессами. он же периодически "усыновляет" wait-ом
                     зомби-процессы, оставшиеся после родителей.
 
                 https://wiki.archlinux.org/title/Init#:~:text=Init%20is%20the%20direct%20or,typically%20assigned%20process%20identifier%201.
 
                 direct or indirect ancestor of all other processes, and automatically adopts all orphaned processes. 
                     It is started by the kernel using a hard-coded filename;
+
+                зомби-сироты по появленю заполняют kernel process table и логично что их надо оттуда убирать с помощью wait(). Это и делает init.
+
+        подборка orphan процесса init-ом:
+            If a parent process terminates, then its "zombie" children (if any) are adopted by init(8), 
+                which automatically performs a wait to remove the zombies.
+            https://stackoverflow.com/questions/24346126/where-do-zombie-processes-go-after-their-parent-dies
