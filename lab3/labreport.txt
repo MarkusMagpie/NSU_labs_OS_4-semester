@@ -259,7 +259,35 @@
 
     ?   3.1 где нужен ненулевой код возврата фкнуции и разобраться зачем это нужно ?
     -   0 - индикатор успешного завершения программы
-    -   ненулевые значения - ошибка
+        ненулевые значения означают какие-либо различные ошибки в программе
+
+        ответы: 
+            main функция: https://en.cppreference.com/w/c/language/main_function
+
+                If the return statement is used, the return value is used as the argument 
+                    to the implicit call to exit() (see below for details). 
+                    The values zero and EXIT_SUCCESS indicate successful termination, the value 
+                    EXIT_FAILURE indicates unsuccessful termination.
+
+                If the return type of the main function is compatible with int, then the return 
+                    from the initial call to main (but not the return from any subsequent, recursive, 
+                    call) is equivalent to executing the exit function, with the value that the main 
+                    function is returning passed as the argument 
+
+            стандарт C99: https://busybox.net/~landley/c99-draft.html#5.1.2.2
+
+                If the return type of the main function is a type compatible with int, 
+                    a return from the initial call to the main function is equivalent to 
+                    calling the exit function with the value returned by the main function as its 
+                    argument;9) reaching the } that terminates the main function returns a value of 0. 
+                    If the return type is not compatible with int, the termination status returned 
+                        to the host environment is unspecified.
+
+            exit vs return: https://stackoverflow.com/questions/3463551/what-is-the-difference-between-exit-and-return
+
+                exit это вариант error management-а - то есть можно выводить разные значения для разных ошиюок в коде
+
+
 
     ?   3.1 через dd сгенерировать гигабайтный файл, провести на нем md5sum тест ?
     -   https://blog.kubesimplify.com/the-complete-guide-to-the-dd-command-in-linux
