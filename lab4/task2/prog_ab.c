@@ -11,7 +11,7 @@ int main(int argc, char *argv[]) {
         // char *args;
         printf("exec выполняется ...\n");
         execvp(argv[0], args);                          // заменяем процесс на новый экземпляр себя
-        perror("exec не удался");
+        printf("exec не удался");
         return 0;
     }
 
