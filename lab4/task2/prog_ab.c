@@ -4,7 +4,7 @@
 
 int main(int argc, char *argv[]) {
     printf("PID: %d\n", getpid());  // i. выводит pid процесса;
-    sleep(1);                       // ii. ждет 1 секунду;
+    sleep(20);                       // ii. ждет 1 секунду;
 
     if (argc == 1) {                                    // iii. делаем exec НОтолько при первом запуске
         char *args[] = {argv[0], "aaa", NULL};
@@ -16,6 +16,6 @@ int main(int argc, char *argv[]) {
     }
 
     printf("Hello world\n");       // iv. выводит сообщение “Hello world” - после успешного выполнения exec
-    sleep(60);                     // за это время делай cat /proc/<pid>/maps
+    sleep(30);                     // за это время делай cat /proc/<pid>/maps
     return 0;
 }

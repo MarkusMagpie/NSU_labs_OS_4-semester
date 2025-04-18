@@ -52,6 +52,7 @@ int main() {
     sleep(2);
 
     // viii-ix присоедините к процессу еще один регион адресов размером в 10 страниц
+    // чекни pid - появится новый блок с правами rw-p
     printf("\n=== viii MMAP эксперимент ===\n");
     void* mapped = mmap(NULL, PAGELOCK_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
     printf("mapped блок: %p-%p\n", 
@@ -60,19 +61,21 @@ int main() {
     sleep(10);
 
     // x-xi изменение прав доступа и обработка ошибок
-    printf("\n=== x изменения прав доступа к mapped блоку ===\n");
+    printf("\n=== x изменения прав доступа к mapped блоку (rw-p) ===\n");
     // программа не аварийно завершалается, а обрабатывает ошибку сегментации SIGSEGV
     signal(SIGSEGV, segv_handler);
     
-    printf("1. запрет чтения (---p)\n");
-    mprotect(mapped, PAGELOCK_SIZE, PROT_NONE);
-    // char test = *((char*)mapped);
+    printf("1. запрет чтения (-w-p)\n");
+    mprotect(mapped, PAGELOCK_SIZE, PROT_WRITE); // устанавливаю права на запись
+    char test = *((char*)mapped);
+    sleep(10);
     
     printf("2. запрет записи (r--p)\n"); 
-    mprotect(mapped, PAGELOCK_SIZE, PROT_READ);
+    mprotect(mapped, PAGELOCK_SIZE, PROT_READ); // устанавливаю права на чтение (r--p)
     // ((char*)mapped)[1] = 2; // mapped - pointer на void -> заменяем пойтер на пойнтер с типом к которому примерним оператор []
+    sleep(10);
     
-    // восстановил права 
+    // восстановил права (rw-p)
     mprotect(mapped, PAGELOCK_SIZE, PROT_READ | PROT_WRITE);
     
     // xii-xiii отсоедините страницы с 4 по 6 в созданном вами регионе.
