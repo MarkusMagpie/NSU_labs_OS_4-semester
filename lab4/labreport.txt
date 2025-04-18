@@ -229,6 +229,8 @@
                 сравнив с адресом переменной global_uninitialized вижу что он лежит внутри диапозона секции .bss
                 (0000000000004018 < 000000000000401c < 000000000000401f)
 
+
+
     d 
         Напишите функцию, которая создает и инициализирует локальную
         переменную и возвращает ее адрес. Прокомментируйте результат и
@@ -236,8 +238,7 @@
 
         Написал prog_d.c
 
-        gcc -o d prog_d.c
-        ./d
+        gcc -o d prog_d.c && ./d
 
         ? Почему изначально ловил segfault? 
         - create_local_variable создаёт локальную переменную local_var на стеке и возвращает её адрес. 
@@ -258,10 +259,40 @@
             https://wiki.sei.cmu.edu/confluence/display/c/MEM30-C.+Do+not+access+freed+memory#:~:text=Reading%20memory%20that%20has%20already,permissions%20of%20the%20vulnerable%20process.
 
 
+
         ? Как это исправить? 
         - динамической памятью с помощбю malloc, чтобы переменная продолжала существовать после выхода из функции
 
         тут почитай про память в СИ: https://craftofcoding.wordpress.com/2015/12/07/memory-in-c-the-stack-the-heap-and-static/
+
+
+
+        ?   Эксперимент - положить в global_vatiable_address фдрес local_var и вернуть его + ПОКАЖИ В ДЕКОМПИЛЯТОРЕ!!!
+            показываю prog_d.c и вырезку из компилятора (раньше просто возвращал 0):
+                //----- (0000000000001169) ----------------------------------------------------
+                unsigned __int64 create_local_variable()
+                {
+                int v1; // [rsp+4h] [rbp-Ch] BYREF
+                unsigned __int64 v2; // [rsp+8h] [rbp-8h]
+
+                v2 = __readfsqword(0x28u);
+                v1 = 42;
+                printf("%d, %p\n", 42, &v1);
+                global_vatiable_address = (__int64)&v1;
+                return v2 - __readfsqword(0x28u);
+                }
+                // 4018: using guessed type __int64 global_vatiable_address;
+
+                //----- (00000000000011CA) ----------------------------------------------------
+                int __fastcall main(int argc, const char **argv, const char **envp)
+                {
+                create_local_variable();
+                printf(&byte_2010, global_vatiable_address, *(unsigned int *)global_vatiable_address);
+                return 0;
+                }
+            на сайте https://dogbolt.org/?id=ef414055-943f-4e18-bd9b-a8db17f6a622#Hex-Rays=144 покажи вывод бинаря d
+
+
 
     e - f
         Напишите функцию, которая:
@@ -316,7 +347,7 @@
                 Если свободного блока нет, malloc() запрашивает новый блок памяти у ОС через 
                     sbrk() (для маленьких аллокаций - растягивает/двигает границу heap) 
                         void *sbrk(intptr_t increment);  
-                        sbrk увеличивает пространство данных программы на increment байт. sbrk не является системным вызовом, он просто является обёрткой (wrapper), которую использует библиотека C
+                        sbrk увеличивает пространство данных программы на increment байт.
                         https://www.opennet.ru/man.shtml?topic=brk&category=2&russian=0
 
                     mmap() (для больших (>128KB) - выделяет страницы памяти напрямую)
@@ -365,7 +396,7 @@
                             mmap(NULL, 2101248, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x71cd34e00000 
                             
                             я вижу инициализацию начальной границы кучи
-                            затем аллокатор вне сегмента кучи берет через mmap выделяет 2101248 байт (тк 2MB > 128RB)
+                            затем аллокатор вне сегмента кучи берет через mmap выделяет 2101248 байт (тк 2MB > 128KB)
                             позже в выводе видим munmap - память полностью освобождается (в отличие от brk(), где память остается в процессе)
 
 
@@ -457,6 +488,24 @@
         ответ + пример PATH: https://www.reddit.com/r/learnpython/comments/gysg3z/can_somebody_explain_to_me_why_exactly/
         примеры: https://en.wikipedia.org/wiki/Environment_variable 
 
+    ?   где находятся переменные окружения ?
+    -   смотри тетрадь + покажи environ_test.c
+
+        gcc -o env environ_test.c && env -i a=1 b=2 ./env
+            -i (--ignore-environment) очищает текущее окружение (начинаю с пустого набора переменных)
+
+        по итогу:
+            1   адреса: envp остаётся тем же (стек), environ меняется (указывает на новый heap буфер)
+                из-за setenv в glibc выдедяется новый буфер в куче с + 1 элементом - в него копируется старое и добавляется 1 новый элемент.
+                    Затем environ ставится в адрес нового буфера и освобождаем страый буффер. Отсюда и изменение адреса.
+                    Смотрел ответ здесь: https://stackoverflow.com/questions/38197264/using-global-variable-char-environ-to-implement-setenv-and-unsetenv?utm_source=chatgpt.com
+            2   данные: envp не меняется, а environ покажет TEST=aaa в конце - я добавил свою переменную окружения.
+
+        пример взят отчасти отсюда: https://unix.stackexchange.com/questions/302970/why-doesnt-unsetenv-modify-proc-pid-environ?utm_source=chatgpt.com
+
+        про запуск программы: https://man7.org/linux/man-pages/man2/execve.2.html?utm_source=chatgpt.com
+        про устройство environ: https://man7.org/linux/man-pages/man7/environ.7.html
+
             
 
     j - k
@@ -504,14 +553,14 @@
         1 терминал
             gcc prog_ab.c -o ab && ./ab
         2 терминал 
-            cat /proc/<PID>/maps
+            watch cat /proc/<PID>/maps
 
         анализ кода: 
-            char *args[] = {argv[0], "--no-exec", NULL};
+            char *args[] = {argv[0], "aaa", NULL};
             массив аргументов для execvp:
-                argv[0] — имя программы
-                "--no-exec" — флаг, чтобы избежать бесконечной рекурсии создания образов (можно показать как оно выглядит)
-                NULL — обязательный элемент для завершения списка.
+                argv[0] - имя программы
+                "aaa" - чтобы избежать бесконечной рекурсии создания образов (можно показать как оно выглядит)
+                NULL - обязательный элемент для завершения списка.
 
             execvp заменяет текущий процесс новым образом программы:
                 1 аргумент - argv[0] - путь к исполняемому файлу
@@ -564,8 +613,8 @@
             vii. освободите занятую память.
             viii. присоедините к процессу еще один регион адресов размером в 10
                 страниц (используйте mmap(2) с флагом ANONYMOUS).
-            ix. понаблюдайте за адресным пространством.x.
-                измените права доступа к созданному региону и проверьте какая
+            ix. понаблюдайте за адресным пространством.
+            x. измените права доступа к созданному региону и проверьте какая
                 будет реакция, если их нарушить:
                     1. запретите читать данные и попробуйте прочитать из региона.
                     2. запретите писать и попробуйте записать.
@@ -575,8 +624,7 @@
 
         Как запусккать: 
             1 терминал 
-                gcc -o c prog_c.c 
-                ./c
+                gcc -o c prog_c.c && ./c
             2 терминал
                 watch cat /proc/pid/maps
 
@@ -636,11 +684,11 @@
             viii - ix присоедините к процессу еще один регион адресов размером в 10 страниц
 
                 mmap(NULL, PAGELOCK_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS, -1, 0);
-                    NULL                        адрес (ОС сама выберет(?))
+                    NULL                        адрес
                     PAGELOCK_SIZE               размер региона
-                    PROT_READ|PROT_WRITE        права доступа (
+                    PROT_READ|PROT_WRITE        права доступа:
                                                 PROT_READ - данные можно читать, 
-                                                PROT_WRITE - в эту область можно записывать информацию)
+                                                PROT_WRITE - можно записывать информацию
                     MAP_PRIVATE|MAP_ANONYMOUS   флаги (
                                                 MAP_ANONYMOUS - Отображение не резервируется ни в каком файле; 
                                                 MAP_PRIVATE - изменения не видны другим процессам)
@@ -656,7 +704,7 @@
                     https://www.opennet.ru/man.shtml?topic=mmap&category=2&russian=0
 
                 ИТОГО: В maps появится новый регион вида 
-                    79a382987000-79a382989000 rw-p 00000000 00:00 0
+                    79a382987000-79a382989000 rw-p 00000000 00:00 0                
 
             x измените права доступа к созданному региону
                 1 запретить читать
@@ -679,6 +727,26 @@
                         PROT_WRITE В память можно записать информацию.
                     https://www.opennet.ru/man.shtml?topic=mprotect&category=2&russian=0
 
+                ?   почему PROT_WRITE не мешает чтению?
+                -   код ниже не вызывает ошибку - почему? 
+
+                    mprotect(mapped, PAGELOCK_SIZE, PROT_WRITE);
+                    char test = *((char*)mapped);
+                    
+                    посмотрим документацию mprotect: https://man7.org/linux/man-pages/man2/mprotect.2.html
+                        здесь написано: On some hardware architectures (e.g., i386), PROT_WRITE implies PROT_READ.
+                    командой uname -m проверил что моя архитектура - x86_64
+
+                    то есть когда я пишу mprotect(mapped, PAGELOCK_SIZE, PROT_WRITE); то я разрешаю не только запись, но и чтение  
+
+                    подтверждение: хедер mman.h: https://sites.uclouvain.be/SystInfo/usr/include/bits/mman.h.html
+                        Protections are chosen from these bits, OR'd together.  The
+                            implementation does not necessarily support PROT_EXEC or PROT_WRITE
+                            without PROT_READ.  The only guarantees are that no writing will be
+                            allowed without PROT_WRITE and no access will be allowed for PROT_NONE.
+
+
+
             xii 
                 partial_addr - указатель на начало 4-й страницы
                 munmap освобождает 3 страницы (4096 * 3 = 12,288 байт) начиная с 4-й (partial_addr)
@@ -696,3 +764,9 @@
                 отсюда вырвал предложение: https://linux.die.net/man/2/munmap
                     It is not an error if the indicated range does not contain any mapped pages.
                     Это про то как лучше освобождать.
+
+                ИТОГО: после первого munmap (4-6 удалены) созданный в пункте viii mmap-ом регион будет разбит на 2 части:
+                    0x7329d58da000 - начало региона
+                    7329d58da000-7329d58dd000 (первые 3 )
+                    7329d58e0000-7329d58e4000 (последние 4)
+
