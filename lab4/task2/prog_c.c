@@ -68,12 +68,12 @@ int main() {
     printf("1. запрет чтения (-w-p)\n");
     mprotect(mapped, PAGELOCK_SIZE, PROT_WRITE); // устанавливаю права на запись
     char test = *((char*)mapped);
-    sleep(10);
+    sleep(15);
     
     printf("2. запрет записи (r--p)\n"); 
     mprotect(mapped, PAGELOCK_SIZE, PROT_READ); // устанавливаю права на чтение (r--p)
     // ((char*)mapped)[1] = 2; // mapped - pointer на void -> заменяем пойтер на пойнтер с типом к которому примерним оператор []
-    sleep(10);
+    sleep(15);
     
     // восстановил права (rw-p)
     mprotect(mapped, PAGELOCK_SIZE, PROT_READ | PROT_WRITE);

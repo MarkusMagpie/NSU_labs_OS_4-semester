@@ -291,6 +291,7 @@
                 return 0;
                 }
             на сайте https://dogbolt.org/?id=ef414055-943f-4e18-bd9b-a8db17f6a622#Hex-Rays=144 покажи вывод бинаря d
+                на сайте вижу что функция возвращает адрес v2 - __readfsqword(0x28u); а раньше был 0, разыменование которого и давал сегфолт.
 
 
 
@@ -487,6 +488,8 @@
 
         ответ + пример PATH: https://www.reddit.com/r/learnpython/comments/gysg3z/can_somebody_explain_to_me_why_exactly/
         примеры: https://en.wikipedia.org/wiki/Environment_variable 
+
+
 
     ?   где находятся переменные окружения ?
     -   смотри тетрадь + покажи environ_test.c
@@ -744,6 +747,18 @@
                             implementation does not necessarily support PROT_EXEC or PROT_WRITE
                             without PROT_READ.  The only guarantees are that no writing will be
                             allowed without PROT_WRITE and no access will be allowed for PROT_NONE.
+
+                    вообще так как методом mmap у нас выделяется страница памяти напрямую у ОС, 
+                        и если мы посмотрим как устроена страничная организация: https://habr.com/ru/articles/787502/
+                        то мы увидим, что на аппаратном уровне бит "защиты страниц" один: Read/Write и он либо 0, либо 1:
+                        если он сброшен, то в страницу нельзя выполнять запись. 
+                        Полагаю что именно отсюда и слова из мана:
+                            PROT_WRITE implies PROT_READ
+                            no writing will be allowed without PROT_WRITE
+                            no access will be allowed for PROT_NONE
+
+                    gcc -o c prog_c.c && ./c
+                    watch cat /proc/pid/maps
 
 
 
