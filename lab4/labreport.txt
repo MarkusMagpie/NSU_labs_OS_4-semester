@@ -491,23 +491,23 @@
 
 
 
-    ?   где находятся переменные окружения ?
-    -   смотри тетрадь + покажи environ_test.c
+        ?   где находятся переменные окружения ?
+        -   смотри тетрадь + покажи environ_test.c
 
-        gcc -o env environ_test.c && env -i a=1 b=2 ./env
-            -i (--ignore-environment) очищает текущее окружение (начинаю с пустого набора переменных)
+            gcc -o env environ_test.c && env -i a=1 b=2 ./env
+                -i (--ignore-environment) очищает текущее окружение (начинаю с пустого набора переменных)
 
-        по итогу:
-            1   адреса: envp остаётся тем же (стек), environ меняется (указывает на новый heap буфер)
-                из-за setenv в glibc выдедяется новый буфер в куче с + 1 элементом - в него копируется старое и добавляется 1 новый элемент.
-                    Затем environ ставится в адрес нового буфера и освобождаем страый буффер. Отсюда и изменение адреса.
-                    Смотрел ответ здесь: https://stackoverflow.com/questions/38197264/using-global-variable-char-environ-to-implement-setenv-and-unsetenv?utm_source=chatgpt.com
-            2   данные: envp не меняется, а environ покажет TEST=aaa в конце - я добавил свою переменную окружения.
+            по итогу:
+                1   адреса: envp остаётся тем же (стек), environ меняется (указывает на новый heap буфер)
+                    из-за setenv в glibc выдедяется новый буфер в куче с + 1 элементом - в него копируется старое и добавляется 1 новый элемент.
+                        Затем environ ставится в адрес нового буфера и освобождаем страый буффер. Отсюда и изменение адреса.
+                        Смотрел ответ здесь: https://stackoverflow.com/questions/38197264/using-global-variable-char-environ-to-implement-setenv-and-unsetenv?utm_source=chatgpt.com
+                2   данные: envp не меняется, а environ покажет TEST=aaa в конце - я добавил свою переменную окружения.
 
-        пример взят отчасти отсюда: https://unix.stackexchange.com/questions/302970/why-doesnt-unsetenv-modify-proc-pid-environ?utm_source=chatgpt.com
+            пример взят отчасти отсюда: https://unix.stackexchange.com/questions/302970/why-doesnt-unsetenv-modify-proc-pid-environ?utm_source=chatgpt.com
 
-        про запуск программы: https://man7.org/linux/man-pages/man2/execve.2.html?utm_source=chatgpt.com
-        про устройство environ: https://man7.org/linux/man-pages/man7/environ.7.html
+            про запуск программы: https://man7.org/linux/man-pages/man2/execve.2.html?utm_source=chatgpt.com
+            про устройство environ: https://man7.org/linux/man-pages/man7/environ.7.html
 
             
 

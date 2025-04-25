@@ -60,10 +60,11 @@ int main() {
         // __WTERMSIG(status) извлекает младшие 7 бит поля status: __WTERMSIG(status)	((status) & 0x7f)
         // __WIFEXITED(status) проверяет что результат этого извлечения ==0 - процесс завершился не из-за сигнала а через exit() или return:
         // __WIFEXITED(status)	(__WTERMSIG(status) == 0)
+        // status: 16 bit; 0-6 номер сигнала (0 если не было); 8-15 - код возврата при нормальном завершении
         if (WIFEXITED(status)) {
             printf("код завершения: %d\n", WEXITSTATUS(status));
         } else {
-            printf("завершен сигналом: %d\n", WTERMSIG(status));
+            printf("завершен сигналом: %d\n", WTERMSIG(status)); // процесс завершился сигналом
         }
     }
     
