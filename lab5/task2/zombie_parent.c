@@ -4,25 +4,29 @@
 #include <sys/wait.h>
 
 int main() {
-    pid_t child_pid = fork();
-    
-    if (child_pid == -1) {
-        perror("fork failed");
-        return 1;
-    }
+    // дед A создает родителя B
+    pid_t pid_b = fork();
 
-    if (child_pid == 0) {
-        printf("[CHILD] PID: %d\n", getpid());
-        printf("[CHILD] старый PPID: %d\n", getppid());
-        sleep(30);
-        printf("[CHILD] новый PPID: %d\n", getppid());
-        printf("[CHILD] завершен!\n");
-        exit(0);
+    if (pid_b == 0) { 
+        // B - родитель для C
+        pid_t pid_c = fork();
+
+        if (pid_c == 0) { 
+            // дочерний процесс C
+            sleep(20);
+            printf("C (PID=%d): работаю, мой родитель теперь init (PID=1): %d\n", getpid(), getppid());
+            exit(0);
+        } else { 
+            // B завершается, не вызывая wait() для C
+            printf("во 2 терминале пиши: cat /proc/%d/status | grep State\n", getpid());
+            sleep(10);
+            printf("B (PID=%d): Завершаюсь, становлюсь зомби для A\n", getpid());
+            exit(0);
+        }
     } else { 
-        printf("[PARENT] PID: %d\n", getpid());
-        printf("[PARENT] завершен!\n");
-        exit(0); 
+        // A завершается, не вызывая wait() для B
+        sleep(15);
+        printf("A (PID=%d): завершаюсь, B процесс завершен\n", getpid());
+        exit(0);
     }
-    
-    return 0;
 }
