@@ -38,13 +38,13 @@ int main() {
     std::cin.getline(buffer, BUFFER_SIZE);
 
     /*
-        sendto() отправляет сообщение серверу через сокет: 
-            client_fd - дескриптор сокета
-            buffer - указатель на буфер с данными
-            strlen(buffer) - размер сообщения
-            0 - флаги
-            (sockaddr*)&server_addr - адрес получателя 
-            sizeof(server_addr) - его размер соответственно
+    sendto() отправляет сообщение серверу через сокет: 
+        client_fd - дескриптор сокета
+        buffer - указатель на буфер с данными
+        strlen(buffer) - размер сообщения
+        0 - флаги
+        (sockaddr*)&server_addr - адрес получателя 
+        sizeof(server_addr) - его размер соответственно
     */
     ssize_t sent_len = sendto(client_fd, buffer, strlen(buffer), 0,
         (sockaddr*)&server_addr, sizeof(server_addr));
