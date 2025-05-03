@@ -1,5 +1,5 @@
 #include <iostream>
-#include <cstring>
+#include <cstring> // memset
 #include <unistd.h>
 #include <arpa/inet.h> // inet_ntoa
 
@@ -31,7 +31,7 @@ int main() {
     server_addr.sin_port = htons(PORT); // номер порта (в сетевом порядке байт) к которому будет привязан сокет
 
     // привязка сокета к адресу server_addr
-    if (bind(server_fd, (const struct sockaddr*)&server_addr, 
+    if (bind(server_fd, (sockaddr*)&server_addr, 
             sizeof(server_addr)) < 0) {
         std::cout << "bind failed" << std::endl;
         close(server_fd);
@@ -67,7 +67,7 @@ int main() {
 
         // отправляем данные обратно клиенту (эхо-ответ который видим с клиентской стороны)
         if (sendto(server_fd, buffer, msg_len, 0,
-            (const struct sockaddr*)&client_addr, client_len) < 0) {
+            (sockaddr*)&client_addr, client_len) < 0) {
             std::cout << "sendto failed" << std::endl;
         }
     }
