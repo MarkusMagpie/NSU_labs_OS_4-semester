@@ -14,9 +14,9 @@
         1 терминал
             gcc server.c -o server2 && ./server2
         2 терминал
-            g++ client.c -o client2 && ./client2
+            gcc client.c -o client2 && ./client2
         3 терминал
-            g++ client.c -o client2 && ./client2
+            gcc client.c -o client2 && ./client2
 
     struct sockaddr_in
         struct sockaddr_in {
@@ -176,3 +176,149 @@
 
             https://qna.habr.com/q/844233#:~:text=Айпи-адрес%20-%20это%20адрес%20конкретного,конкретном%20компьютере%20шлется%20запрос%2C%20т.
             про порты: https://www.ittelo.ru/news/chto-takoe-port-v-seti/?srsltid=AfmBOorp-2zA1Mnurqtuc70K-Lrz_JDda0OzRAAma_09TCCyp9eXcH9W
+
+
+
+2. ТСP - эхо сервер:
+    a. Сделайте TCP-сервер, который принимает соединения от клиентов на заданном ip и port.
+    b. создает новый процесс, в котором:
+        i. читает данные от клиента;
+        ii. пересылает их ему обратно.
+    c. Напишите TCP-клиента для проверки TCP-сервера.
+    d. Проверьте, что TCP-сервер работает с несколькими клиентами и обрабатывает сессии в разных процессах.
+
+    как запускать: 
+        1 терминал
+            gcc server.c -o server && ./server
+        2 терминал
+            gcc client.c -o client && ./client
+        3 терминал
+            gcc client.c -o client && ./client
+
+    сервер: 
+        ЛОГИКА РАБОТЫ: 
+            1 создаем и настраиваем TCP-сокет, байндим к порту
+            2 listen() - ожидание запросов связи на сокете 
+            3 while(1)
+                accept() - принятие связи на сокет (новый клиент)
+                печатаем ip и порт клиента 
+                fork() - разделяемся: 
+                    дочерний - закрывает server_fd, дальше в handle_client() читает данные, эхо-ответ, потом закрывает client_sock и exit(0)
+                    родительский - закрывает client_sock(его обслуживает ребенок), возвращается к началу цикла - accept()
+
+        socket
+            int socket (int domain, int type, int protocol)
+                domain - cпецификация семейства адресов
+                type - cпецификация типа для нового сокета
+                protocol - Используемый протокол. 
+                    Возможные параметры параметра протокола относятся к указанному семейству адресов и типу сокета. 
+
+            в моем случае:
+                socket(AF_INET, SOCK_DGRAM, 0)
+                    AF_INET - cемейство адресов IPv4 
+                    SOCK_STREAM - тип сокета, который предоставляет виртуационные, надежные двусторонние потоки байтов на основе подключений 
+                        с механизмом передачи данных OOB. Этот тип сокета использует протокол TCP  
+                    0 - вызывающий объект не хочет указывать протокол, и поставщик услуг выберет протокол для использования
+
+            https://learn.microsoft.com/ru-ru/windows/win32/api/winsock2/nf-winsock2-socket
+            https://www.opennet.ru/docs/RUS/linux_base/node245.html
+
+        listen
+            int listen(int s, int backlog)
+                s - сокет для прослушивания 
+                backlog - целое положительное число, определяющее, как много запросов связи может быть принято на сокет одновременно.
+
+            Функция listen используется сервером, чтобы информировать ОС, что он ожидает ("слушает") запросы связи на данном сокете. 
+                Без такой функции всякое требование связи с этим сокетом будет отвергнуто.
+
+            в моем случае: 
+                listen(server_fd, 5)
+
+            https://www.opennet.ru/docs/RUS/linux_base/node247.html#:~:text=Функция%20listen%20используется%20сервером%2C%20чтобы,int%20s%2C%20int%20backlog)%3B
+
+        accept
+            int accept(int s, char * name, int* anamelen)
+                s - сокет-дескриптор для принятия связей от клиентов
+                name - указатель на адрес клиента (структура sockaddr) для соответствующего домена
+                anamelen - eказатель на целое число - длину структуры адреса
+
+            Функция используется сервером для принятия связи на сокет. Сокет должен быть уже слушающим в момент вызова функции. 
+                Если сервер устанавливает связь с клиентом, то функция accept возвращает новый сокет-дескриптор, 
+                через который и происходит общение клиента с сервером.
+            Если сервер не интересуется адресом клиента, в качестве второго и третьего аргументов можно задать NULL-указатели.
+
+            в моем случае:
+                accept(server_fd, (struct sockaddr*)&client_addr, &client_len)
+
+            https://opennet.ru/docs/RUS/linux_base/node248.html#:~:text=Эта%20функция%20используется%20сервером%20для,происходит%20общение%20клиента%20с%20сервером.
+
+        fork()
+            При вызове fork() возникают два полностью идентичных процесса. 
+                Весь код после fork() выполняется дважды, как в процессе-потомке, так и в процессе-родителе.
+
+            https://www.opennet.ru/docs/RUS/linux_parallel/node7.html
+
+        recv 
+            int recv(int s, void *buf, size_t len, int flags)
+                s - файловый дескриптор уже открытого и connected сокета 
+                buf - указатель на начало буфера в памяти, куда будут скопированы входящие данные.
+                len - максимальный размер этого буфера в байтах.
+                flags - битовая маска, модифицирующая поведение приёма 
+
+            чтение входящих данных в connected сокете 
+
+            ! recv vs recvfrom: Вызов recv обычно используется соединенном сокете (см. connect(2)) и идентичен вызову recvfrom с параметром from, установленным в NULL:
+                recv(sockfd, buf, len, flags)
+                recvfrom(sockfd, buf, len, flags, NULL, NULL)
+
+            в моем случае: recv(client_sock, buffer, BUFFER_SIZE, 0)
+
+            https://www.opennet.ru/man.shtml?topic=recv&category=2&russian=0
+
+    клиент: 
+        ЛОГИКА РАБОТЫ: 
+            1 socket() - создал TCP-сокет
+            2 inet_pton() - конвертировал IP адрес сервера из строки в бинарный вид
+            3 connect() - установил TCP-соединение с сервером
+            4 ввод текста через fgets()
+            5 send() - отправил введённую строку серверу
+            6 recv() - получил эхо-ответ(то же самое) от сервера, печатаю
+            7 close() - после завершения обмена закрыл сокет
+
+        connect
+            int connect(int sockfd, const struct sockaddr *serv_addr, socklen_t addrlen); 
+                sockfd - дескриптор, определяющий неподключенные сокеты
+                serv_addr - указатель на структуру sockaddr, с которой должно быть установлено соединение
+                addrlen - длина структуры sockaddr в байтах, на которую указывает параметр name
+
+            устанавливает соединение с указанным первым параметром сокетом
+
+            в моем случае: 
+                connect(client_fd, (struct sockaddr*)&server_addr, sizeof(server_addr))
+
+            https://learn.microsoft.com/ru-ru/windows/win32/api/winsock2/nf-winsock2-connect
+            https://www.opennet.ru/man.shtml?topic=connect&category=2&russian=0
+
+        send
+            int send(int s, char * buf, int len, int flags)
+                s - сокет-дескриптор, в который записываются данные
+                buf - адрес буфера с записываемыми данными
+                len - длина этого буфера
+                flags - комбинация битовых флагов, управляющих режимами записи. Если аргумент flags равен нулю, то запись в сокет 
+                    (и, соответственно, считывание ) происходит в порядке поступления байтов.
+            
+            запись данных в connected сокет
+
+            ! send vs sendto: обе функции при успешном возвращают число отправленных байт, или -1 при ошибке. 
+                НО:
+                    send() работает только на подключённых (connected) сокетах и не требует указания адреса получателя
+                    sendto() может применяться на любых сокетах (как подключённых, так и неконнектных) и дополнительно принимает параметры адреса получателя
+                ответ: https://www.reddit.com/r/C_Programming/comments/xlwsdy/send_vs_sendto/
+                    send() is for connected sockets (ie, TCP is the most common usage), 
+                        while sendto() is for sockets which don't require a connected state ( ie, UDP)
+            send(sockfd, buf, len, flags);
+            sendto(sockfd, buf, len, flags, NULL, 0);
+
+
+            https://www.opennet.ru/cgi-bin/opennet/man.cgi?topic=send&category=2
+    

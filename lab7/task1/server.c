@@ -52,8 +52,7 @@ int main() {
             (sockaddr*)&client_addr - адрес получателя
             &client_len - размер  получателя
         */
-        ssize_t msg_len = recvfrom(server_fd, buffer, BUFFER_SIZE, 0,
-            (struct sockaddr*)&client_addr, &client_len);
+        ssize_t msg_len = recvfrom(server_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&client_addr, &client_len);
         
         if (msg_len < 0) {
             printf("recvfrom failed");

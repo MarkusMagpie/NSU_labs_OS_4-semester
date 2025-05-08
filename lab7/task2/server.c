@@ -1,0 +1,100 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h> // inet_ntoa
+#include <sys/wait.h>
+#include <signal.h>
+
+#define PORT 5000
+#define BUFFER_SIZE 1024
+
+/* b. TCP-сервер создает новый процесс, в котором: 
+i.читает данные от клиента;
+ii.пересылает их ему обратно.
+*/
+void handle_client(int client_sock) {
+    char buffer[BUFFER_SIZE]; // буфер для приема/отправки данных клиента
+    ssize_t bytes_read;
+    
+    // цикл работает пока присвоенный bytes_read результат работы recv - чтения данных с сокета != 0
+    while (bytes_read = recv(client_sock, buffer, BUFFER_SIZE, 0)) {
+        if (bytes_read < 0) {
+            printf("recv failed");
+            break;
+        }
+        buffer[bytes_read] = '\0';
+        printf("получено %s\n", buffer);
+        // эхо-ответ обратно клиенту 
+        send(client_sock, buffer, bytes_read, 0);
+        memset(buffer, 0, BUFFER_SIZE);
+    }
+    close(client_sock);
+    exit(0);
+}
+
+int main() {
+    int server_fd, client_sock;
+    struct sockaddr_in server_addr, client_addr;
+    socklen_t client_len = sizeof(client_addr);
+
+    // создаем TCP сокет
+    /*
+    socket() создает сокет, возвращает дескриптор сокета
+        __domain - AF_INET - протокол IPv4
+        __type - SOCK_STREAM - TCP
+        __protocol - 0 - выбирается автоматически
+    */
+    server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd < 0) {
+        printf("socket creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // настройка адреса сервера server_addr
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET; // IP адрес к которому будет привязан сокет (IPv4)
+    server_addr.sin_port = htons(PORT); // номер порта (в сетевом порядке байт) к которому будет привязан сокет
+
+    // привязка сокета к адресу server_addr
+    if (bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+        printf("bind failed");
+        close(server_fd);
+        exit(EXIT_FAILURE);
+    }
+
+    // начало прослушивания
+    if (listen(server_fd, 5) < 0) {
+        printf("listen failed");
+        close(server_fd);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("TCP сервер запущен на порту %d\n", PORT);
+
+    while (1) {
+        // принятие нового соединения
+        client_sock = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
+        if (client_sock < 0) {
+            printf("accept failed");
+            continue;
+        }
+
+        printf("новое подключение от %s:%d\n", inet_ntoa(client_addr.sin_addr), client_addr.sin_port);
+
+        // создание дочернего процесса
+        pid_t pid = fork();
+        if (pid < 0) {
+            printf("fork failed");
+            close(client_sock);
+        } else if (pid == 0) { // дочерний процесс
+            close(server_fd); // закрываем слушающий сокет
+            handle_client(client_sock);
+        } else {
+            close(client_sock); // закрываем клиентский сокет
+        }
+    }
+
+    close(server_fd);
+    return 0;
+}

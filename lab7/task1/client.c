@@ -68,6 +68,7 @@ int main() {
         NULL - адрес получателя (нас не интересует)
         NULL - размер получателя
     */
+    // можно использовать recv 
     ssize_t recv_len = recvfrom(client_fd, buffer, BUFFER_SIZE, 0, NULL, NULL);
     if (recv_len < 0) {
         printf("recvfrom failed");
