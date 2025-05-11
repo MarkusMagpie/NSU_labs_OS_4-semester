@@ -16,7 +16,7 @@ int main() {
     // создаем UDP сокет
     /*
     socket() создает сокет, возвращает дескриптор сокета
-        __domain - AF_INET - протокол IPv4
+        __domain - AF_INET - IPv4
         __type - SOCK_DGRAM - UDP
         __protocol - 0 - выбирается автоматически
     */
