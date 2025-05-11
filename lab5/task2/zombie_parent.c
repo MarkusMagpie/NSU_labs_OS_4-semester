@@ -13,8 +13,9 @@ int main() {
 
         if (pid_c == 0) { 
             // дочерний процесс C
+            printf("C (PID=%d): работаю, мой родитель сейчас: %d\n", getpid(), getppid());
             sleep(20);
-            printf("C (PID=%d): работаю, мой родитель теперь init (PID=1): %d\n", getpid(), getppid());
+            printf("C (PID=%d): работал, мой родитель теперь init (PID=1): %d\n", getpid(), getppid());
             exit(0);
         } else { 
             // B завершается, не вызывая wait() для C

@@ -165,7 +165,7 @@
 
 
 2   
-    a
+    a zombie_child.c
         Модифицируйте предыдущую программу так чтобы дочерний процесс становился зомби.
 
         отличия от таска 1:
@@ -253,3 +253,5 @@
             If a parent process terminates, then its "zombie" children (if any) are adopted by init(8), 
                 which automatically performs a wait to remove the zombies.
             https://stackoverflow.com/questions/24346126/where-do-zombie-processes-go-after-their-parent-dies
+            the orphan process is soon adopted by init process, once its parent process dies.
+            https://www.geeksforgeeks.org/zombie-and-orphan-processes-in-c/
