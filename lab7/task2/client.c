@@ -26,7 +26,7 @@ int main() {
     }
 
     // настройка адреса сервера server_addr
-    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_family = AF_INET; // IP адрес к которому будет привязан сокет (IPv4)
     server_addr.sin_port = htons(PORT); // номер порта (в сетевом порядке байт) к которому будет привязан сокет
     
