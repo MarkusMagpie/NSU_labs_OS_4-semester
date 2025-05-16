@@ -9,6 +9,18 @@
 #define PORT 5000
 #define BUFFER_SIZE 1024
 
+ssize_t send_all(int sock_fd, const void *buf, size_t len) {
+    ssize_t bytes_sent = 0;
+    while (bytes_sent < len) {
+        ssize_t bytes_sent_now = send(sock_fd, buf + bytes_sent, len - bytes_sent, 0);
+        if (bytes_sent_now < 0) { // если при отправке произошла ошибка (оборвался сокет или что-то еще
+            return -1;
+        }
+        bytes_sent += bytes_sent_now;
+    }
+    return bytes_sent;
+}
+
 /* b. TCP-сервер создает новый процесс, в котором: 
 i.читает данные от клиента;
 ii.пересылает их ему обратно.
@@ -26,7 +38,11 @@ void handle_client(int client_sock_fd) {
         buffer[bytes_read] = '\0';
         printf("получено %s\n", buffer);
         // эхо-ответ обратно клиенту 
-        send(client_sock_fd, buffer, bytes_read, 0);
+        // send(client_sock_fd, buffer, bytes_read, 0);
+        if (send_all(client_sock_fd, buffer, bytes_read) < 0) {
+            printf("send_all (send(s)) failed");
+            break;
+        }
         memset(buffer, 0, BUFFER_SIZE);
     }
 
@@ -49,6 +65,14 @@ int main() {
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {
         printf("socket creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // SO_REUSEADDR позволяет переиспользовать порт сразу после завершения сервера. даже если он в состоянии TIME_WAIT
+    int opt = 1;
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
+        printf("setsockopt failed");
+        close(server_fd);
         exit(EXIT_FAILURE);
     }
 
