@@ -447,8 +447,14 @@
                     select(max_fd + 1, &temp_fds, NULL, NULL, NULL)
                     блокируется выполнение пока хотя бы 1 из temp_fds не готов к чтению 
 
-                https://www.opennet.ru/man.shtml?topic=select&category=2&russian=0ы
+                https://www.opennet.ru/man.shtml?topic=select&category=2&russian=0
                 https://learn.microsoft.com/ru-ru/windows/win32/api/winsock2/nf-winsock2-select
+
+                english only: Before select() is called, the application creates one or more of the 
+                    readfds, writefds, or exceptfds bitmaps, by asserting bits corresponding to the set of interesting file descriptors. 
+                    On its return, select() overwrites these bitmaps with new values, corresponding to subsets of the input sets, 
+                    indicating which file descriptors are available for I/O.
+                отсюда: https://www.usenix.org/legacy/event/usenix99/full_papers/banga/banga_html/node3.html
 
             getpeername
                 int getpeername(int s, struct sockaddr *name, socklen_t *namelen)
@@ -464,3 +470,33 @@
                     getpeername(sd, (struct sockaddr*)&client_addr, &client_len);
 
                 https://www.opennet.ru/man.shtml?topic=getpeername&category=2&russian=0
+
+    ?   почему select перебирая ФД не сжигает ресурс процессора
+    -   когда вызываю select() с таймаутом NULL, процесс переходит в состояние "ожидания события" в ядре - 
+            система ставит его в очередь "заблокированных" задач (не активен, не потребляет CPU), освобождая CPU для других задач, 
+            до тех пор, пока не пройзойдет что-то на отслеживаемых fd. 
+            Как только на любом из отслеживаемых fd появляется готовность (например, 
+            новые данные (у меня это входящее соединение)), ядро "пробуждает" процесс и возвращает 
+            управление в приложение (user space). Между этими событиями ваш процесс не потребляет 
+            такты CPU.
+        Если бы в коде был busy-wait - код в пользовательском пространстве в цикле без остановок постоянно опрашивает условие.
+            ПРИМЕР: while (!ready) {}
+            то нагрузка на CPU действительно будет расти.
+
+        select() блокируется в kernel space (а значит не потребляет CPU), он не опрашивает дескрипторы в user space. 
+
+        select() starts by checking, for each descriptor present in the input bitmaps, whether that descriptor 
+            is already available for I/O. If none are available, then select() blocks. Later, when a protocol 
+            processing (or file system) module's state changes to make a descriptor readable or writable, 
+            that module awakens the blocked process. The awakened process has no idea which descriptor 
+            has just become readable or writable, so it must repeat its initial scan.
+
+        распорядок дня select(): 
+            1 скан битмапов readfds, writefds, и exceptfds на наличие готовых дескрипторов.
+            2 если нет, то select() блокируется (переход в kernel space)
+            3 если на любом из битмапов появляется готовность, то select() пробуждается (переход в user space)
+            4 скан битмапов
+
+            возвращает обновленные битмапы с готовыми дескрипторами
+
+        взял отсюда: https://www.usenix.org/legacy/event/usenix99/full_papers/banga/banga_html/node3.html

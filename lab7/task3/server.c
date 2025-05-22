@@ -9,6 +9,18 @@
 #define BUFFER_SIZE 1024
 #define MAX_CLIENTS 10
 
+ssize_t send_all(int sock_fd, const void *buf, size_t len) {
+    ssize_t bytes_sent = 0;
+    while (bytes_sent < len) {
+        ssize_t bytes_sent_now = send(sock_fd, buf + bytes_sent, len - bytes_sent, 0);
+        if (bytes_sent_now < 0) { // если при отправке произошла ошибка (оборвался сокет или что-то еще
+            return -1;
+        }
+        bytes_sent += bytes_sent_now;
+    }
+    return bytes_sent;
+}
+
 int main() {
     int server_fd, client_sock_fd;
     struct sockaddr_in server_addr, client_addr;
@@ -72,8 +84,10 @@ int main() {
             printf("select error");
             exit(EXIT_FAILURE);
         }
+        // temp_fds модифицирован - выставлены биты только для тех дескрипторов, на которых есть готовность к чтению
 
-        // обработка нового подключения (FD_ISSET - есть ли активность на server_fd (попытка полключения)?)
+        // обработка нового подключения (FD_ISSET - установлен ли бит для именно слушающего сокета server_fd?)
+        // да -> в очереди есть входящее подключение (connect() от клиента)
         if (FD_ISSET(server_fd, &temp_fds)) {
             client_sock_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
             if (client_sock_fd < 0) {
@@ -83,7 +97,7 @@ int main() {
 
             printf("новое подключение (клиент) от %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
-            // добавляю новый сокет client_sock_fd в массив
+            // добавляю новый сокет client_sock_fd в массив (установил бит в read_fds)
             for (i = 0; i < MAX_CLIENTS; i++) {
                 if (client_sockets[i] == 0) {
                     client_sockets[i] = client_sock_fd;
@@ -112,7 +126,7 @@ int main() {
                 if (bytes_read <= 0) {
                     // закрываю соединения
                     getpeername(sd, (struct sockaddr*)&client_addr, &client_len);
-                    printf("Клиент отключен: %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+                    printf("клиент отключен: %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
                     // закрытие соединения + очистка элемента массива происходит в обоих случаях
                     close(sd);
                     FD_CLR(sd, &read_fds);
@@ -120,9 +134,9 @@ int main() {
                 } else {
                     // эхо-ответ
                     buffer[bytes_read] = '\0';
-                    printf("получил от клиента %d: %s\n", sd, buffer);
-                    if (send(sd, buffer, bytes_read, 0) < 0) {
-                        printf("send error");
+                    printf("получено: %s\n", buffer);
+                    if (send_all(sd, buffer, bytes_read) < 0) {
+                        printf("send_all (send(s)) failed");
                         close(sd);
                         FD_CLR(sd, &read_fds);
                         client_sockets[i] = 0;
