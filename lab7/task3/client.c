@@ -8,17 +8,10 @@
 #define BUFFER_SIZE 1024
 
 int main() {
-    int client_fd = 0;
+    int client_fd;
     struct sockaddr_in server_addr;
     char buffer[BUFFER_SIZE] = {0};
 
-    // создаем TCP сокет
-    /*
-    socket() создает сокет, возвращает дескриптор сокета
-        __domain - AF_INET - протокол IPv4
-        __type - SOCK_STREAM - TCP
-        __protocol - 0 - выбирается автоматически
-    */
     client_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (client_fd < 0) {
         printf("socket creation failed");
@@ -29,7 +22,7 @@ int main() {
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_family = AF_INET; // IP адрес к которому будет привязан сокет (IPv4)
     server_addr.sin_port = htons(PORT); // номер порта (в сетевом порядке байт) к которому будет привязан сокет
-    
+
     if (inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr) <= 0) {
         printf("address conversion failed");
         close(client_fd);
