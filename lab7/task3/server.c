@@ -78,7 +78,7 @@ int main() {
 
     // бесконечно ждем активности на любом из отслеживаемых сокетов
     while (1) {
-        fd_set temp_fds = read_fds; // копия множества read_fds, так как select() модифицирует переданное множество
+        fd_set temp_fds = read_fds; // копия множества read_fds, так как select() модифицирует переданное множество (temp_fds)
         
         if (select(max_fd + 1, &temp_fds, NULL, NULL, NULL) < 0) {
             printf("select error");
@@ -101,7 +101,7 @@ int main() {
             for (i = 0; i < MAX_CLIENTS; i++) {
                 if (client_sockets[i] == 0) {
                     client_sockets[i] = client_sock_fd;
-                    FD_SET(client_sock_fd, &read_fds);
+                    FD_SET(client_sock_fd, &read_fds); // установил бит в read_fds
                     if (client_sock_fd > max_fd) {
                         max_fd = client_sock_fd;
                     }
