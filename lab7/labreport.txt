@@ -389,7 +389,7 @@
     мультиплексирование: 
         1 I/O multiplexing is the the ability to perform I/O operations on multiple file descriptors.
         2 один процесс в блокирующем виде ожидает готовности нескольких файловых дескрипторов 
-            и, когда ОС сигнализирует об активности на том или ином дескрипторе, обрабатывает именно его, 
+            и, когда ОС сигнализирует об активности каком-то дескрипторе, обрабатывает именно его, 
             не создавая для каждого нового соединения отдельный поток или процесс
 
     клиент: 
@@ -498,6 +498,8 @@
             has just become readable or writable, so it must repeat its initial scan.
 
         распорядок дня select(): 
+            0 (до вызова select()) - application creates one or more of the readfds, writefds, or exceptfds 
+                bitmaps, by asserting bits corresponding to the set of interesting file descriptors
             1 в user space: скан битмапов readfds, writefds, и exceptfds на наличие готовых дескрипторов
             2 если нет, то select() блокируется (переход в kernel space)
             3 ядро мониторит состояния всех регистрируемых fd
@@ -507,3 +509,14 @@
             возвращает обновленные битмапы с готовыми дескрипторами
 
         взял отсюда: https://www.usenix.org/legacy/event/usenix99/full_papers/banga/banga_html/node3.html
+
+    ?   как recv() понимает что связь с клиентом закончена? 
+    -   The connected TCP socket on the client is not returning an error when the server closes the connection. 
+            It simply returns 0 bytes read.
+
+        return value 0 from recv() always means the other end will not (be able to) transmit any more data.
+
+        взял отсюда: https://www.linuxquestions.org/questions/programming-9/client-tcp-socket-recv-returning-0-when-server-closes-the-connection-4175412549
+        еще варие ответа: https://stackoverflow.com/questions/38021659/can-a-c-socket-recv-0-bytes-without-the-client-shutting-the-connection
+
+        

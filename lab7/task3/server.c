@@ -26,7 +26,7 @@ int main() {
     struct sockaddr_in server_addr, client_addr;
     socklen_t client_len = sizeof(client_addr);
 
-    fd_set read_fds;
+    fd_set read_fds, write_fds;
     int max_fd;
     int client_sockets[MAX_CLIENTS];
     int i;
@@ -73,22 +73,24 @@ int main() {
 
     // НОВОЕ: инициализация наборов дескрипторов
     FD_ZERO(&read_fds); // занулил множество read_fds, т.е. пометил все дескрипторы как "не отслеживаемые"
+    FD_ZERO(&write_fds);
     FD_SET(server_fd, &read_fds); // добавил слушающий сокет server_fd в множество read_fds. будем следить за тем, когда на server_fd появится новое входящее соединение
     max_fd = server_fd; // наибольший номер дескриптора в множестве. select() ТРЕБУЕТ знать диапазон проверяемых дескрипторов - от 0 до max_fd включительно!!!
 
     // бесконечно ждем активности на любом из отслеживаемых сокетов
     while (1) {
-        fd_set temp_fds = read_fds; // копия множества read_fds, так как select() модифицирует переданное множество (temp_fds)
+        fd_set temp_read = read_fds; // копия множества read_fds, так как select() модифицирует переданное множество (temp_read)
+        fd_set temp_write = write_fds;
         
-        if (select(max_fd + 1, &temp_fds, NULL, NULL, NULL) < 0) {
+        if (select(max_fd + 1, &temp_read, &temp_write, NULL, NULL) < 0) {
             printf("select error");
             exit(EXIT_FAILURE);
         }
-        // temp_fds модифицирован - выставлены биты только для тех дескрипторов, на которых есть готовность к чтению
+        // temp_read модифицирован - выставлены биты только для тех дескрипторов, на которых есть готовность к чтению
 
         // обработка нового подключения (FD_ISSET - установлен ли бит для именно слушающего сокета server_fd?)
         // да -> в очереди есть входящее подключение (connect() от клиента)
-        if (FD_ISSET(server_fd, &temp_fds)) {
+        if (FD_ISSET(server_fd, &temp_read)) {
             client_sock_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
             if (client_sock_fd < 0) {
                 printf("accept error");
@@ -102,6 +104,7 @@ int main() {
                 if (client_sockets[i] == 0) {
                     client_sockets[i] = client_sock_fd;
                     FD_SET(client_sock_fd, &read_fds); // установил бит в read_fds
+                    FD_SET(client_sock_fd, &write_fds);
                     if (client_sock_fd > max_fd) {
                         max_fd = client_sock_fd;
                     }
@@ -118,10 +121,15 @@ int main() {
         // обработка активности клиентов (проходим по всем активным сокетам из client_sockets)
         for (i = 0; i < MAX_CLIENTS; i++) {
             int sd = client_sockets[i];
-            // FD_ISSET(sd, &temp_fds) <=> на этом конкретном клиентском сокете есть данные от клиента!!!
-            if (sd > 0 && FD_ISSET(sd, &temp_fds)) {
-                char buffer[BUFFER_SIZE];
-                ssize_t bytes_read = recv(sd, buffer, BUFFER_SIZE, 0);
+
+            if (sd <= 0) continue;
+
+            ssize_t bytes_read;
+            char buffer[BUFFER_SIZE];
+
+            // FD_ISSET(sd, &temp_read) <=> на этом конкретном клиентском сокете есть данные от клиента!!!
+            if (FD_ISSET(sd, &temp_read)) {
+                bytes_read = recv(sd, buffer, BUFFER_SIZE, 0);
 
                 if (bytes_read <= 0) {
                     // закрываю соединения
@@ -130,8 +138,15 @@ int main() {
                     // закрытие соединения + очистка элемента массива происходит в обоих случаях
                     close(sd);
                     FD_CLR(sd, &read_fds);
+                    FD_CLR(sd, &write_fds);
                     client_sockets[i] = 0;
-                } else {
+                    continue;
+                }
+            }
+
+            // FD_ISSET(sd, &temp_write) <=> на этом конкретном клиентском сокете есть возможность отправить данные
+            if (FD_ISSET(sd, &temp_write)) {
+                if (bytes_read > 0) {
                     // эхо-ответ
                     buffer[bytes_read] = '\0';
                     printf("получено: %s\n", buffer);
