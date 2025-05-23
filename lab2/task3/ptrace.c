@@ -7,11 +7,6 @@
 #include <unistd.h>
 
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        printf("параметры для вывода не указаны\n");
-        return EXIT_FAILURE;
-    }
-
     pid_t child = fork();
     if (child == -1) {
         printf("fork error");
@@ -36,7 +31,6 @@ int main(int argc, char *argv[]) {
 
         // в родительском процессе дожидаемся завершения дочернего, вычитывая код завершения 
         waitpid(child, &status, 0); // статус завершения дочернего процесса записывается в status
-        printf("child exited with status %d\n", WEXITSTATUS(status));
 
         // проверяем остановлен ли дочерний процесс (true - дочерний процесс остановлен, false - не остановлен)
         while (WIFSTOPPED(status)) {
@@ -45,7 +39,7 @@ int main(int argc, char *argv[]) {
                 printf("ptrace SYSCALL error");
                 break;
             }
-            waitpid(child, &status, 0); // жду завершения дочернего процесса опять 
+            waitpid(child, &status, 0); // жду остановки дочернего процесса опять после PTRACE_SYSCALL 
 
             if (!WIFSTOPPED(status)) break;
 
