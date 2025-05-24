@@ -484,3 +484,42 @@
             переименование исходного файла: симлинк становится битым (причина выше)
             директория: можно
 
+
+
+3. Написать программу, которая выводит содержимое /proc/pid/pagemap
+    как запускать: 
+        echo $$
+        gcc -o show show_pagemap.c && sudo ./show $$
+
+    /proc/pid/pagemap - это файл в виртуальной файловой системе /proc, 
+        предоставляющий информацию о отображении виртуальных страниц процессов в физические. 
+    смотри здеся: https://www.kernel.org/doc/html/v4.18/admin-guide/mm/pagemap.html
+
+    что такое PFN?
+        PFN (Physical Frame Number) - номер физической страницы в памяти.
+            Если страница присутствует в RAM (present=1), PFN указывает на физический адрес.
+            Если страница в swap (present=0), PFN может содержать информацию о местоположении в swap (но это зависит от ядра).
+
+    snprintf
+        int snprintf(char* s, size_t n, const char* format, ...);
+            s - ссылка на начало строки, куда будет записан результат ее работы
+            n - максимальное количество байтов, которые будут записаны по адресу (первый аргумент)
+            format - строка форматирования
+            аргументы для строки форматирования
+
+        snprintf форматирует строку как printf, но записывает результат работы по адресу, вместо того, 
+            чтобы вывести строку в стандартный вывод. Также эта функция принимает максимальное количество 
+            байтов, которые нужно записать по адресу. Это делает ее более безопасной альтернативой 
+            функции sprintf.
+
+        https://codelessons.dev/ru/snprintf-in-c-cplusplus/
+
+    fgets
+        char* fgets( char* restrict str, int count, FILE* restrict stream )
+        
+        Reads at most COUNT - 1 characters from the given file STREAM and stores them in the character 
+            array pointed to by STR. Parsing stops if a newline character is found
+
+        https://en.cppreference.com/w/c/io/fgets
+
+    lseek 
