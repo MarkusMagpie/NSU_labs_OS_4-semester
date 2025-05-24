@@ -479,3 +479,93 @@ strace ./test
             waitpid(child, &status, 0);
 
         https://www.opennet.ru/man.shtml?topic=waitpid&category=2&russian=0
+
+
+
+3.2. реализовать задание 3 для многопоточной программы с использованием ptrace
+    как запускать:
+        gcc -o potoks potoks.c 
+        gcc -o tracer2 ptrace2.c && ./tracer2 
+
+    логика программы:
+
+    пояснения к potoks.c:
+        с помощью pthread_create создал 2 потока работающих бесконечно и параллельно main потоку.
+            Программа не завершается сама.
+
+
+
+        pthread_create
+            int pthread_create( pthread_t *thread,
+                        const pthread_attr_t *attr,
+                        void * (*start_routine)( void * ),
+                        void *arg );
+                thread - NULL или указатель на объект pthread_t, где функция может хранить идентификатор созданного потока.
+                attr - Указатель на структуру pthread_attr_t, которая определяет атрибуты нового потока. 
+                    Если attr равен NULL, то будут использоваться атрибуты по умолчанию (см. pthread_attr_init()).
+                start_routine - указатель на функцию, которая будет выполняться в новом потоке.
+                arg - аргумент потоковой функции start_routine
+
+            создает новый поток с указанными в attr атрибутами в вызывающем процессе.
+
+            в моем случае: 
+                pthread_create(&t1, NULL, thread_func, &id1);
+
+            https://help.kpda.ru/neutrino/2020/help/index.jsp?topic=%2Fru.kpda.doc.os_ru%2Fhtml%2Flibraries%2Flibc%2Fp%2Fpthread_create.html
+            https://www.opennet.ru/man.shtml?topic=pthread_create&category=3&russian=2
+
+    пояснения к ptrace2.c:
+        в выводе я всегда буду видеть 3 потока: например TID 12012, 12013 и 12014 - это и есть потоки 
+            из potoks.c MAIN thread, t1 и t2 соответственно. 
+        Если посомтреть на вывод проги то там много write() и nanosleep() - это работают потоки potoks.c.
+
+        родитель: 
+            делает fork()
+            (синхронизация) ждет с помощью waitpid execve() у ребенка при выполнени execl() для начала работы potoks.c
+            ptrace(PTRACE_SETOPTIONS + PTRACE_O_TRACECLONE) - включил для child опцию автоматической трассировки новых потоков, создаваемых им через clone()
+            while(1) {
+                ptrace(PTRACE_SYSCALL, child, NULL, NULL) - приостановил исполнение трасируемого процесса (дочернего) до наступления точки входа или выхода из системного вызова
+                waitpid(-1, &status, NULL) - ждать события у любого дочернего потока
+                if (WIFEXITED(status)) { ... } - обработка завершения какого-то дочернего потока
+                if (WIFSTOPPED(status)) { - обработка остановки какого-то дочернего потока
+                    ловлю SIGTRAP - сигнал трассивровки, генерируемый ядром при:
+                        1 входе/выходе из системного вызова
+                        2 clone()-ом создан новый поток
+                    ptrace(PTRACE_GETREGS, child, NULL, &regs) - получаю регистры остановленного потока
+                    if (!in_syscall[regs.rax]) {...} - определение входа/выхода в сискол
+                }
+            }
+            ptrace(PTRACE_SYSCALL, tid, NULL, NULL) - продолжаю исполнение потока tid до входа/выхода из системного вызова
+
+
+            ptrace(PTRACE_SETOPTIONS, child, NULL, PTRACE_O_TRACECLONE)
+                включил для child опцию автоматической трассировки новых потоков, создаваемых им через clone()
+                
+                PTRACE_SETOPTIONS - Set ptrace options from data (в моем случае PTRACE_O_TRACECLONE) (!вместо прежних)
+                child - идентификатор процесса для которог оменяем опции трассировки
+                PTRACE_O_TRACECLONE - трасс-ть новые потоки созданные через clone()
+                    "при любом системном вызове clone() остановить child и автоматически присоединиться к созданному clone() потоку"
+
+            ptrace(PTRACE_SYSCALL, child, NULL, NULL)
+                продолжаем исполнение трасируемого процесса (дочернего) до наступления точки входа или выхода из системного вызова
+
+                child - идентификатор процесса которому дана команда продолжить работу до ...
+
+            waitpid(-1, &status, __WALL)
+                -1 - ждать любого дочернего процесса или потока
+                &status - указатель на переменную, куда waitpid запишет код остановки или завершения
+                __WALL - waitpid реагирует на остановки всех потоков в группе процессов 
+                    (созданных через clone), а не только на главный
+                
+                то есть трассируются: 
+                    1 остановка на входе/выходе сискол (наследие PTRACE_SYSCALL)
+                    2 процесс (или поток) получил любой сигнал
+                    3 завершение (exit())
+
+            ptrace(PTRACE_GETREGS, tid, NULL, &regs)
+                копируем общие регистры трассируемого (дочернего) процесса в переменную regs родительского
+
+            WSTOPSIG - вернет сигнал (int), вызвавший остановку процесса (дочернего)
+                https://docs-python.ru/standart-library/modul-os-python/opredelenie-sostojanija-protsessa/#os.WSTOPSIG
+
+            
