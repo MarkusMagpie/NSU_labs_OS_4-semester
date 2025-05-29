@@ -76,14 +76,14 @@ int main() {
                 // если еще не в системном вызове (in_syscall[idx] == 0)
                 if (!in_syscall[idx]) {
                     in_syscall[idx] = 1;
-                    if (syscall_num >= 0 && syscall_names[syscall_num] != NULL) {
+                    if (syscall_names[syscall_num] != NULL) {
                         printf("thread %d: enter syscall %s (%ld)\n", tid, syscall_names[syscall_num], syscall_num);
                     } else {
                         printf("thread %d: enter unknown syscall %ld\n", tid, syscall_num);
                     }
                 } else { // если уже в системном вызове
                     in_syscall[idx] = 0;
-                    if (syscall_num >= 0 && syscall_names[syscall_num] != NULL) {
+                    if (syscall_names[syscall_num] != NULL) {
                         printf("thread %d: exit syscall %s (%ld), return = %llu\n", tid, syscall_names[syscall_num], syscall_num, regs.rax);
                     } else {
                         printf("thread %d: exit unknown syscall %ld, return = %llu\n", tid, syscall_num, regs.rax);

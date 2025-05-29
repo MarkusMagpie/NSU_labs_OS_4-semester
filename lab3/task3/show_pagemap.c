@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
             uint64_t pfn = entry & ((1ULL << 55) - 1);
 
             // PRIx64 — макрос для корректного вывода 64-битных чисел в шестнадцатеричном формате
-            printf("\tVA: 0x%09" PRIx64 " -> PFN: 0x%" PRIx64 " | present: %d\n", vaddr, pfn, present);
+            printf("\tVA: 0x%" PRIx64 " -> PFN: 0x%" PRIx64 " | present: %d\n", vaddr, pfn, present);
         }
     }
 

@@ -512,6 +512,10 @@
             байтов, которые нужно записать по адресу. Это делает ее более безопасной альтернативой 
             функции sprintf.
 
+        в моем случае:
+            snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", pid);
+            snprintf(pagemap_path, sizeof(pagemap_path), "/proc/%d/pagemap", pid);
+
         https://codelessons.dev/ru/snprintf-in-c-cplusplus/
 
     fgets
