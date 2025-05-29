@@ -21,7 +21,7 @@ void recursive_func(int depth) {
     }
 }
 
-// точка входа для нового процесса
+// функция 1 - точка входа для нового процесса
 int child_entry(void *arg) {
     // запускаем рекурсивную функцию с глубиной 10
     recursive_func(10);
@@ -30,14 +30,14 @@ int child_entry(void *arg) {
 }
 
 int main(void) {
-    const char *file_path = "stackfile.dat";
+    char *file_path = "stackfile.dat";
     int fd = open(file_path, O_RDWR | O_CREAT, 0666);
     if (fd < 0) {
         printf("open failed");
         exit(EXIT_FAILURE);
     }
 
-    // увеличиваем файл до нужного размера
+    // увеличиваем файл до нужного размера 
     if (ftruncate(fd, STACK_SIZE) < 0) {
         printf("ftruncate failed");
         close(fd);
@@ -45,9 +45,7 @@ int main(void) {
     }
 
     // отображаем файл в память (общий, синхронизируемый)
-    void *stack_region = mmap(NULL, STACK_SIZE,
-                              PROT_READ | PROT_WRITE,
-                              MAP_SHARED, fd, 0);
+    void *stack_region = mmap(NULL, STACK_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (stack_region == MAP_FAILED) {
         printf("mmap failed");
         close(fd);
@@ -72,5 +70,5 @@ int main(void) {
     // освобождаем область памяти стека
     munmap(stack_region, STACK_SIZE);
 
-    return 0;
+    return EXIT_SUCCESS;
 }
