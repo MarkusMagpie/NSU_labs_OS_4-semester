@@ -519,4 +519,119 @@
         взял отсюда: https://www.linuxquestions.org/questions/programming-9/client-tcp-socket-recv-returning-0-when-server-closes-the-connection-4175412549
         еще варие ответа: https://stackoverflow.com/questions/38021659/can-a-c-socket-recv-0-bytes-without-the-client-shutting-the-connection
 
-        
+3.2. Не должно быть блокирующих операций кроме select()
+    
+    typedef struct {
+        int fd; 
+        char outbuf[OUTBUF_SIZE];
+        size_t out_head; 
+        size_t out_tail;
+    } client_t;
+
+    client_t - храненит информацию о каждом подключённом клиенте в сервере. fd поле хранит дескриптор клиентского сокета, 
+        а поля outbuf, out_head и out_tail реализуют кольцевой буфер, который аккумулирует данные, подлежащие отправке 
+        клиенту. 
+        out_tail - индекс в outbuf, куда следует записывать новые данные («хвост» буфера)
+        out_head - индекс в outbuf, с которого нужно брать данные для отправки («голова» буфера)
+
+
+    после создания сокета я сразу вызываю функцию make_nonblocking, чтобы установить его в не блокирующее состояние:
+
+        int make_nonblocking(int fd) {
+            int flags = fcntl(fd, F_GETFL, 0);
+            if (flags < 0) return -1;
+            return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+        }
+    
+        fcntl(fd, F_GETFL, 0) - F_GETFL - получаю текущие флаги состояния для открытого fd.
+        если fd некорректен, то fcntl вернет -1
+        fcntl(fd, F_SETFL, flags | O_NONBLOCK) - устанавливаю новые флаги состояния для fd - добавил O_NONBLOCK:
+            O_NONBLOCK означает "неблокирующий ввод-вывод": операции read(), recv() и write(), send() в этом режиме 
+            не будут зацикливаться, если нет данных и/или буферы полны. Вместо блокировки они вернут -1.
+
+
+        if (errno != EAGAIN && errno != EWOULDBLOCK) {
+            printf("accept error");
+        }
+
+        если сокет не помечен как O_NONBLOCK, то при отсутствии входящих подключений, accept() блокируется, 
+            пока соединение не появится.
+        а если сокет уже в неблокирующем режиме (установили O_NONBLOCK через fcntl), то при отсутствии входящих 
+            подключений accept() не заблокируется, а сразу вернёт -1, с кодом ошибки EAGAIN или EWOULDBLOCK:
+            EAGAIN (Error, Try Again) / EWOULDBLOCK (Error, Would Block): 
+                операция(accept()) не может быть выполнена прямо сейчас, т.к. она блокировала бы поток, но мы в неблокирующем 
+                    режиме - попробуйте ещё раз позже!
+
+
+    в пункте 5.1 - обработке дескрипторов готовых к чтению запись эхо-ответа происходит по-новому:
+        size_t used = (c->out_tail + OUTBUF_SIZE - c->out_head) % OUTBUF_SIZE;
+        size_t free_space = OUTBUF_SIZE - used;
+        size_t to_copy = bytes_read < free_space ? bytes_read : free_space;
+        size_t tail = c->out_tail;
+        size_t part1 = to_copy < (OUTBUF_SIZE - tail) ? to_copy : (OUTBUF_SIZE - tail);
+        memcpy(c->outbuf + tail, buf, part1);
+        memcpy(c->outbuf, buf + part1, to_copy - part1);
+        c->out_tail = (tail + to_copy) % OUTBUF_SIZE;
+
+        used - число байт, которые уже скопированы в буфер и ещё не отправлены клиенту,
+            out_tail - индекс в outbuf после последнего скопированного байта 
+            out_head - индекс в outbuf, указывающий на первый байт, который ещё не был отправлен клиенту
+            вычисляю длину между этими индексами по модулю OUTBUF_SIZE
+        free_space - число байт, которые свободны в буфере
+        to_copy - число байт, которые нужно скопировать в буфер
+            bytes_read - количество байт, полученных recv()
+            если получил меньше байт, чем свободно в буфере, то копируем с буффер полученные байты, 
+                иначе копируем байты свободные в буфере
+        tail - храню текущий хвост в локальной переменной
+        part1 - число байт, которое можно сразу скопировать без перехода через границу массива
+            OUTBUF_SIZE - tail - максимальное число байт, которое можно записать непрерывно от tail до конца массива outbuf
+            если to_copy < OUTBUF_SIZE - tail, то весь блок, который мы хотим скопировать, поместится "до конца" outbuf; 
+            а иначе: сначала копируем (OUTBUF_SIZE - tail) байт до конца массива, а оставшиеся (to_copy − (OUTBUF_SIZE − tail)) 
+            байт запишем в начало outbuf
+        memcpy(c->outbuf + tail, buf, part1) - копирую part1 байт из buf в outbuf, начиная с индекса tail
+            это запись до конца массива outbuf
+        memcpy(c->outbuf, buf + part1, to_copy - part1) - копирую невлезшие (to_copy - part1) байт из buf в outbuf, если они есть
+        c->out_tail - сдвиг хвоста активного клиента:
+            tail + to_copy - сдвигаю текущий хвост на количество скопированных байт
+            % OUTBUF_SIZE - чтобы не выходить за границу outbuf
+            c->out_tail - указатель на ячейку в outbuf, с которой начнется копирование данных при следующем приеме пакетов
+
+    в пункте 5.2 - обработка дескрипторов готовых к записи:
+        if (FD_ISSET(fd, &temp_write)) {
+            size_t used = (c->out_tail + OUTBUF_SIZE - c->out_head) % OUTBUF_SIZE;
+            if (used > 0) {
+                size_t head = c->out_head;
+                size_t chunk = used < (OUTBUF_SIZE - head) ? used : (OUTBUF_SIZE - head);
+                ssize_t bytes_send = send(fd, c->outbuf + head, chunk, 0);
+                printf("отправлено сообщение: %s\n", c->outbuf + head);
+                if (bytes_send > 0) {
+                    c->out_head = (head + bytes_send) % OUTBUF_SIZE;
+                } else if (bytes_send < 0 && (errno != EAGAIN && errno != EWOULDBLOCK)) {
+                    FD_CLR(fd, &master_read);
+                    FD_CLR(fd, &master_write);
+                    close(fd);
+                    printf("ошибка send, не связана с блокировкой: %s\n", strerror(errno));
+                    c->fd = 0;
+                }
+            }
+        }
+
+        used - число байт, которые уже скопированы в буфер и ещё не отправлены клиенту
+        head - индекс в outbuf, указывающий на первый байт, который ещё не был отправлен клиенту
+        chunk - число байт, которые нужно отправить клиенту:
+            OUTBUF_SIZE - head - это максимальный размер непрерывной области до конца массива outbuf
+            used < (OUTBUF_SIZE - head) - значит весь непросланный объём укладывается без оборачивания в конец массива
+            иначе - часть данных находится в сегменте [head ... OUTBUF_SIZE−1], а другая - после оборачивания в [0 .. out_tail−1]
+                и будем отправлять клиенту только OUTBUF_SIZE - head байт - первую непрерывную часть.
+        bytes_send - число байт, которые мы можем отправить: это до chunk байт, начиная с адреса outbuf + head.
+        если смогли отправить какое-то положительное к-во байт клиенту то обновляем указатель головы:
+            c->out_head = (head + bytes_send) % OUTBUF_SIZE;
+            ! bytes_send байт теперь точно помечены как отправленные и больше не относятся к ожидающим отправки.
+        обработка ошибок (ошибка отлична от EAGAIN и EWOULDBLOCK - данные не отправляются):
+            FD_CLR(fd, &master_read) и FD_CLR(fd, &master_write) - удаляем дескриптор fd из наборов, чтобы select() 
+                больше не следил за этим сокетом
+            close(fd) - закрываем сокет
+            c->fd = 0 - помечаем слот clients[i] как свободный
+
+
+    fcntl()
