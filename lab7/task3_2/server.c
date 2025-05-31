@@ -13,7 +13,7 @@
 #define BUFFER_SIZE 1024
 #define MAX_CLIENTS 5
 
-#define OUTBUF_SIZE (1<<16)  // 64 KB per-client
+#define OUTBUF_SIZE (65536)  // 64KB - размер кольцевого буфера для клиентов
 
 // НОВОЕ - инфа о каждои подключенном к серверу клиенте
 typedef struct {
@@ -34,7 +34,7 @@ int main(void) {
     int server_fd, max_fd, i, client_sock_fd;
     struct sockaddr_in server_addr, client_addr;
     socklen_t client_len = sizeof(client_addr);
-    client_t clients[MAX_CLIENTS] = {0};
+    client_t clients[MAX_CLIENTS] = {0}; // массив клиентов (структур client_t)
     fd_set master_read, master_write;
 
     // 1 - создаём слушающий TCP сокет
@@ -185,7 +185,7 @@ int main(void) {
                     size_t head = c->out_head;
                     size_t chunk = used < (OUTBUF_SIZE - head) ? used : (OUTBUF_SIZE - head);
                     // благодаря O_NONBLOCK send() никогда не будет висеть в ожидании освобождения буфера
-                    // вместо ожидания send() вернет errno == EAGAIN или errno == EWOULDBLOCK
+                    // вместо ожидания send() вернет errno == EAGAIN или errno == EWOULDBLOCK - не фатальная ошибка
                     ssize_t bytes_send = send(fd, c->outbuf + head, chunk, 0);
                     printf("отправлено сообщение: %s\n", c->outbuf + head);
                     if (bytes_send > 0) {
