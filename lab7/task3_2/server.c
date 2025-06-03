@@ -115,7 +115,7 @@ int main(void) {
                         clients[i].out_head = 0;
                         clients[i].out_tail = 0;
                         FD_SET(client_sock_fd, &master_read);
-                        FD_SET(client_sock_fd, &master_write);
+                        // FD_SET(client_sock_fd, &master_write);
                         if (client_sock_fd > max_fd) {
                             max_fd = client_sock_fd;
                         }
@@ -162,6 +162,8 @@ int main(void) {
                     continue;
                 }
 
+                FD_SET(fd, &master_write);
+
                 printf("получено сообщение от клиента: %s\n", buf);
 
                 // запись данных в кольцевой буфер outbuf (эхо-ответ)
@@ -188,11 +190,17 @@ int main(void) {
                     size_t chunk = used < (OUTBUF_SIZE - head) ? used : (OUTBUF_SIZE - head);
                     // благодаря O_NONBLOCK send() никогда не будет висеть в ожидании освобождения буфера
                     // вместо ожидания send() вернет errno == EAGAIN или errno == EWOULDBLOCK - не фатальная ошибка
-                    ssize_t bytes_send = send(fd, c->outbuf + head, chunk, 0);
+                    ssize_t bytes_sent = send(fd, c->outbuf + head, chunk, 0);
                     printf("отправлено сообщение: %s\n", c->outbuf + head);
-                    if (bytes_send > 0) {
-                        c->out_head = (head + bytes_send) % OUTBUF_SIZE;
-                    } else if (bytes_send <= 0 && (errno != EAGAIN && errno != EWOULDBLOCK)) {
+                    if (bytes_sent > 0) {
+                        c->out_head = (head + bytes_sent) % OUTBUF_SIZE;
+                        // пересчет сколько ещё осталось данных
+                        used = (c->out_tail + OUTBUF_SIZE - c->out_head) % OUTBUF_SIZE;
+                        if (used == 0) {
+                            // все данные отправлены => сбросить флаг 
+                            FD_CLR(fd, &master_write);
+                        }
+                    } else if (bytes_sent <= 0 && (errno != EAGAIN && errno != EWOULDBLOCK)) {
                         FD_CLR(fd, &master_read);
                         FD_CLR(fd, &master_write);
 
@@ -200,6 +208,8 @@ int main(void) {
                         close(fd);
                         c->fd = 0;
                     }
+                } else {
+                    FD_CLR(fd, &master_write);
                 }
             }
         }
