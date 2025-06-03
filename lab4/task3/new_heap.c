@@ -56,7 +56,7 @@ void *my_malloc(size_t size) {
     // выравнивание запрашиваемого размера до 8 байт
     size = ((size + 7) / 8) * 8;
 
-    // поиск свободного блока (начинаем от головы списка блоков)
+    // поиск свободного блока
     Header *cur = head;
     while (cur != NULL) {
         if (cur->free && cur->size >= size) {
@@ -76,8 +76,7 @@ void *my_malloc(size_t size) {
 
                 cur->size = size;
             } else {
-                // если не получилось разделить блок, выделяю его целиком:
-                // возвращаю указатель на пользовательскую область
+                // если не получилось разделить блок, выделяю текущий блок целиком
                 cur->free = 0;
                 return (char *)cur + sizeof(Header);
             }
@@ -136,7 +135,7 @@ void test_simple_alloc_free() {
         return;
     }
 
-    memset(p, 'a', 128); // заполняю блок p символом 'a'
+    memset(p, 'a', 128);
     
     my_free(p);
     printf("test_simple_alloc_free: тест прошел\n");

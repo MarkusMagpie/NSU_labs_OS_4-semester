@@ -520,6 +520,12 @@
         еще варие ответа: https://stackoverflow.com/questions/38021659/can-a-c-socket-recv-0-bytes-without-the-client-shutting-the-connection
 
 3.2. Не должно быть блокирующих операций кроме select()
+
+    как запускать: 
+        1 терминал
+            gcc server.c -o server && ./server
+        2 терминал
+            gcc client.c -o client && ./client
     
     typedef struct {
         int fd; 

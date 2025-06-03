@@ -17,10 +17,10 @@
 
 // НОВОЕ - инфа о каждои подключенном к серверу клиенте
 typedef struct {
-    int fd; // дескриптор клиентского сокета
-    char outbuf[OUTBUF_SIZE]; // кольцевой буфер для исходящих данных
+    int fd;
+    char outbuf[OUTBUF_SIZE];
     size_t out_head; // индекс в outbuf - первый байт, который ещё не был отправлен клиенту
-    size_t out_tail; // индекс в outbuf после последнего скопированного байта  
+    size_t out_tail; // индекс в outbuf - после последнего скопированного байта  
 } client_t;
 
 // перевод сокета в неблокирующий режим с помощью fcntl и флага O_NONBLOCK
@@ -47,7 +47,7 @@ int main(void) {
     // настроил повторное использование порта - SO_REUSEADDR позволяет переиспользовать порт сразу после завершения сервера. даже если он в состоянии TIME_WAIT
     int opt = 1;
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
-        printf("setsockopt failed");
+        printf("setsockopt error");
         close(server_fd);
         exit(EXIT_FAILURE);
     }
@@ -62,7 +62,7 @@ int main(void) {
 
     // привязка сокета к адресу server_addr
     if (bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
-        printf("bind failed");
+        printf("bind error");
         close(server_fd);
         exit(EXIT_FAILURE);
     }
@@ -136,7 +136,7 @@ int main(void) {
             }
         }
 
-        // 5 - обработка активности клиентов (проходим по всем активным сокетам из client_sockets)
+        // 5 - обработка активности подключённых клиентов (проходим по всем активным сокетам из client_sockets)
         for (i = 0; i < MAX_CLIENTS; i++) {
             client_t *c = &clients[i];
             int fd = c->fd;
@@ -161,6 +161,8 @@ int main(void) {
 
                     continue;
                 }
+
+                printf("получено сообщение от клиента: %s\n", buf);
 
                 // запись данных в кольцевой буфер outbuf (эхо-ответ)
                 size_t used = (c->out_tail + OUTBUF_SIZE - c->out_head) % OUTBUF_SIZE;
@@ -193,8 +195,9 @@ int main(void) {
                     } else if (bytes_send <= 0 && (errno != EAGAIN && errno != EWOULDBLOCK)) {
                         FD_CLR(fd, &master_read);
                         FD_CLR(fd, &master_write);
-                        close(fd);
+
                         printf("ошибка send, не связана с блокировкой: %s\n", strerror(errno));
+                        close(fd);
                         c->fd = 0;
                     }
                 }
